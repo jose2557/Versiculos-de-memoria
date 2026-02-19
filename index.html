@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Versículos De Memoria</title>
+<title>Versículos De Memoria — Corregido V14</title>
 <style>
   body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:16px;line-height:1.45}
   h3{margin-top:0}
@@ -39,6 +39,7 @@
   .selected-summary{width:320px;border-left:1px solid #eee;padding-left:12px;max-height:55vh;overflow:auto}
   .selected-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0}
   #completedList{margin-top:12px;padding:8px;border:1px dashed #cfc;background:#f7fff7;border-radius:6px}
+  #__diagPanel{font-family:system-ui,Segoe UI,Roboto,Arial}
 </style>
 </head>
 <body>
@@ -62,16 +63,12 @@
 
   <div class="controls-right">
     <button id="startBtn">Iniciar sesión</button>
-    <button id="openSelector" class="small-btn">Modo libre</button>
     <button id="showAllBtn" class="small-btn">Mostrar todos (selector)</button>
-    <button id="viewHistory" class="small-btn">Ver historial</button>
-    <button id="exportHistory" class="small-btn">Exportar historial</button>
-    <button id="forceResetPracticed" class="small-btn">Forzar reinicio practiced</button>
-    <button id="resetProgress">Reset progreso</button>
+    <button id="resetAll" class="small-btn">Reiniciar todo</button>
   </div>
 </div>
 
-<p class="small">El buscador del selector no borra las selecciones. Usa la columna derecha para ver y gestionar lo que has marcado.</p>
+<p class="small">Si el botón sigue sin responder en iPhone, prueba servir el archivo por HTTP y revisa el panel de errores que aparece en pantalla.</p>
 
 <hr/>
 
@@ -103,7 +100,7 @@
   <input id="selectorSearch" class="search-input" placeholder="Buscar por referencia, texto o categoría..." />
   <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center">
     <button id="selectAllBtn" class="small-btn">Seleccionar todo</button>
-    <button id="clearSelectionBtn" class="small-btn">Limpiar</button>
+    <button id="clearSelectionBtn" class="small-btn">Limpiar visibles</button>
     <button id="addSelectedBtn" class="small-btn">Añadir seleccionados</button>
     <button id="practiceSelectedBtn" class="small-btn">Practicar seleccionados</button>
     <button id="closeSelectorBtn" class="small-btn">Cerrar</button>
@@ -136,11 +133,58 @@
 
 <script>
 /* =========================
-   Inicialización y datos
+   Panel de diagnóstico (captura errores)
+   ========================= */
+(function(){
+  window.__diagErrors = [];
+  window.addEventListener('error', function(e){
+    window.__diagErrors.push(`${e.message} at ${e.filename}:${e.lineno}:${e.colno}`);
+    showDiagPanel();
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    window.__diagErrors.push('Promise rejection: ' + (e.reason && e.reason.message ? e.reason.message : JSON.stringify(e.reason)));
+    showDiagPanel();
+  });
+  function showDiagPanel(){
+    if(document.getElementById('__diagPanel')) {
+      updateDiagList();
+      return;
+    }
+    const p = document.createElement('div');
+    p.id='__diagPanel';
+    p.style.position='fixed';
+    p.style.left='8px';
+    p.style.top='8px';
+    p.style.zIndex=99999;
+    p.style.maxWidth='95%';
+    p.style.maxHeight='40%';
+    p.style.overflow='auto';
+    p.style.background='rgba(0,0,0,0.85)';
+    p.style.color='white';
+    p.style.padding='10px';
+    p.style.borderRadius='8px';
+    p.style.fontSize='12px';
+    p.innerHTML = `<strong>Errores JS detectados</strong><div id="__diagList" style="margin-top:8px"></div><div style="margin-top:6px"><button id="__diagClose">Cerrar</button></div>`;
+    document.body.appendChild(p);
+    document.getElementById('__diagClose').onclick = ()=> p.remove();
+    updateDiagList();
+  }
+  function updateDiagList(){
+    const el = document.getElementById('__diagList');
+    if(!el) return;
+    el.innerHTML = window.__diagErrors.map(x=>`<div style="margin-top:6px">${x}</div>`).join('');
+  }
+  window.__showDiag = showDiagPanel;
+})();
+
+/* =========================
+   DOMContentLoaded: toda la app dentro
    ========================= */
 window.addEventListener('DOMContentLoaded', () => {
 
-  // Lista completa (usa tu lista real; aquí está incluida la tuya)
+  /* =========================
+     Datos (lista completa)
+     ========================= */
   const verses = [
 {ref:"Génesis 1:1", text:"En el principio creó Dios el cielo y la tierra."},
 {ref:"Josué 1:8", text:"El libro de esta ley nunca se apartará de tu boca: antes de día y de noche meditarás en él, para que guardes y hagas conforme a todo lo que en él está escrito: porque entonces harás prosperar tu camino, y todo te saldrá bien."},
@@ -256,7 +300,7 @@ window.addEventListener('DOMContentLoaded', () => {
   ];
 
   /* =========================
-     Categorías (igual que antes)
+     Categorías y normalización
      ========================= */
   const categoryLists = {
     discipulado: [
@@ -335,7 +379,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   /* =========================
-     Normalize text (compatible Safari)
+     Normalización de texto (compatible Safari)
      ========================= */
   function normalizeText(s){
     if(!s) return '';
@@ -366,7 +410,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   /* =========================
-     Reencolado diferido (igual que antes)
+     Reencolado diferido
      ========================= */
   function scheduleRequeue(idx, options = {}){
     const minAhead = options.minAhead || 2;
@@ -446,15 +490,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function getNextIndex(){ if(queue.length>0) return queue.shift(); if(errorsQueue.length>0) return errorsQueue.shift(); return null; }
 
-  function updateQueueInfo(){ document.getElementById('queueInfo').textContent = `En cola: ${queue.length}  Errores: ${errorsQueue.length}  Practicados: ${practiced.size}  (Filtro: ${currentCategory})`; }
+  function updateQueueInfo(){ document.getElementById('queueInfo').textContent = `En cola: ${queue.length}  Errores: ${errorsQueue.length}  Completados: ${practiced.size}  (Filtro: ${currentCategory})`; }
 
   /* =========================
-     NUEVO: estado del selector (persistente durante la sesión)
-     - selectedSet guarda índices seleccionados aunque filtres
-     - renderSelectedSummary muestra la lista lateral y el conteo
+     Selector state (preservado) y completados
      ========================= */
-  const selectedSet = new Set(); // índices seleccionados en modo libre
-  const completedPerfect = new Set(); // referencias completadas 100%
+  const selectedSet = new Set();
+  const completedPerfect = new Set();
 
   function renderSelectedSummary(){
     const container = document.getElementById('selectedListItems');
@@ -471,12 +513,10 @@ window.addEventListener('DOMContentLoaded', () => {
         <div style="margin-left:8px"><button class="small-btn remove-selected" data-idx="${idx}">Quitar</button></div>`;
       container.appendChild(div);
     });
-    // enlazar botones quitar
     container.querySelectorAll('.remove-selected').forEach(b=>{
       b.addEventListener('click', ()=>{
         const idx = parseInt(b.getAttribute('data-idx'));
         selectedSet.delete(idx);
-        // actualizar checkbox si está visible
         const cb = document.querySelector(`.selector-checkbox[data-idx="${idx}"]`);
         if(cb) cb.checked = false;
         renderSelectedSummary();
@@ -485,18 +525,16 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   /* =========================
-     Selector: render y comportamiento (preserva selectedSet)
+     Selector render y comportamiento
      ========================= */
   const selectorModal = document.getElementById('selectorModal');
   const selectorList = document.getElementById('selectorList');
   const selectorSearch = document.getElementById('selectorSearch');
 
-  document.getElementById('openSelector').addEventListener('click', ()=>{ renderSelectorList(false); document.getElementById('overlay').style.display='block'; selectorModal.style.display='block'; });
   document.getElementById('showAllBtn').addEventListener('click', ()=>{ renderSelectorList(true); document.getElementById('overlay').style.display='block'; selectorModal.style.display='block'; });
   document.getElementById('closeSelectorBtn').addEventListener('click', ()=>{ selectorModal.style.display='none'; document.getElementById('overlay').style.display='none'; });
 
   document.getElementById('selectAllBtn').addEventListener('click', ()=>{
-    // seleccionar todos los visibles
     selectorList.querySelectorAll('.selector-checkbox').forEach(cb=>{
       cb.checked = true;
       selectedSet.add(parseInt(cb.getAttribute('data-idx')));
@@ -504,14 +542,9 @@ window.addEventListener('DOMContentLoaded', () => {
     renderSelectedSummary();
   });
   document.getElementById('clearSelectionBtn').addEventListener('click', ()=>{
-    // limpiar visibles y selectedSet
     selectorList.querySelectorAll('.selector-checkbox').forEach(cb=>{
       cb.checked = false;
     });
-    // si quieres limpiar todo seleccionado:
-    // selectedSet.clear();
-    // renderSelectedSummary();
-    // pero aquí solo limpiamos visibles:
     const visibleIdx = Array.from(selectorList.querySelectorAll('.selector-checkbox')).map(cb=>parseInt(cb.getAttribute('data-idx')));
     visibleIdx.forEach(i => selectedSet.delete(i));
     renderSelectedSummary();
@@ -519,7 +552,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('clearSelectedBtn').addEventListener('click', ()=>{
     selectedSet.clear();
-    // limpiar checkboxes visibles
     selectorList.querySelectorAll('.selector-checkbox').forEach(cb=>cb.checked=false);
     renderSelectedSummary();
   });
@@ -551,7 +583,6 @@ window.addEventListener('DOMContentLoaded', () => {
       selectorList.appendChild(row);
     });
 
-    // Restaurar estado de checkboxes según selectedSet
     selectorList.querySelectorAll('.selector-checkbox').forEach(cb=>{
       const idx = parseInt(cb.getAttribute('data-idx'));
       cb.checked = selectedSet.has(idx);
@@ -561,7 +592,6 @@ window.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // enlazar acciones
     selectorList.querySelectorAll('[data-action]').forEach(btn=>{
       btn.addEventListener('click', (e)=>{
         const action = btn.getAttribute('data-action');
@@ -597,7 +627,6 @@ window.addEventListener('DOMContentLoaded', () => {
   function practiceSelectedNow(){
     const arr = Array.from(selectedSet);
     if(arr.length === 0){ alert('No hay versículos seleccionados.'); return; }
-    // poner al frente en el orden seleccionado
     arr.forEach(idx => { queue = queue.filter(x => x !== idx); errorsQueue = errorsQueue.filter(x => x !== idx); });
     queue = arr.concat(queue);
     saveState();
@@ -646,12 +675,11 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('overlay').addEventListener('click', ()=>{
     if(selectorModal.style.display === 'block') selectorModal.style.display='none';
     if(verseModal.style.display === 'block') verseModal.style.display='none';
-    if(document.getElementById('historyModal') && document.getElementById('historyModal').style.display === 'block') hideHistoryModal();
     document.getElementById('overlay').style.display='none';
   });
 
   /* =========================
-     Flujo de práctica (igual que antes) con actualización de completados 100%
+     Flujo de práctica y UI
      ========================= */
   function renderCard(idx){
     const container = document.getElementById('cardContainer');
@@ -706,7 +734,6 @@ window.addEventListener('DOMContentLoaded', () => {
       practiced.add(currentIndex);
       recordDifficulty(currentIndex, true);
       recordHistory(currentIndex, 'correct');
-      // marcar completado 100%
       completedPerfect.add(verses[currentIndex].ref);
       updateCompletedList();
       document.getElementById('feedback').textContent = 'Correcto'; document.getElementById('feedback').className='small right';
@@ -744,43 +771,25 @@ window.addEventListener('DOMContentLoaded', () => {
   function nextFlow(){ const nextIdx = getNextIndex(); if(nextIdx===null) renderCard(null); else renderCard(nextIdx); updateQueueInfo(); saveState(); }
 
   /* =========================
-     Historial, export, categoría y demás (igual que antes)
+     Historial mínimo y export omitido (botones eliminados)
      ========================= */
-  document.getElementById('startBtn').addEventListener('click', ()=>{
-    document.getElementById('sessionArea').style.display='block';
-    prepareDailyQueue(true);
-    const nextIdx = getNextIndex();
-    renderCard(nextIdx);
-  });
-
-  document.getElementById('resetProgress').addEventListener('click', ()=>{
-    if(confirm('¿Deseas resetear todo el progreso (practiced, difficulty, historial)?')){
-      localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(DATE_KEY);
-      queue = []; errorsQueue = []; practiced = new Set(); difficulty = {}; history = {}; currentIndex = null; completedPerfect.clear();
-      document.getElementById('sessionArea').style.display='none'; updateCompletedList(); alert('Progreso reseteado completamente.');
-    }
-  });
-
-  document.getElementById('forceResetPracticed').addEventListener('click', ()=>{
-    if(confirm('¿Forzar reinicio de la lista "practiced"?')){
-      practiced = new Set(); saveState(); alert('practiced reiniciado.');
-    }
-  });
-
-  document.getElementById('viewHistory').addEventListener('click', showHistoryModal);
-  document.getElementById('exportHistory').addEventListener('click', exportHistoryCSV);
-
-  function showHistoryModal(){ const overlay = document.getElementById('overlay'); let modal = document.getElementById('historyModal'); if(!modal){ modal = document.createElement('div'); modal.id='historyModal'; modal.style.display='none'; document.body.appendChild(modal); } overlay.style.display='block'; modal.style.display='block';
-    modal.innerHTML = `<h4>Historial por día</h4><div class="small" style="margin-bottom:8px">Última fecha registrada: ${localStorage.getItem(DATE_KEY) || '—'}</div><div style="max-height:60vh;overflow:auto">${renderHistoryTable()}</div><div style="margin-top:12px;display:flex;gap:8px"><button id="closeHistory" class="small-btn">Cerrar</button><button id="clearHistory" class="small-btn">Borrar historial</button></div>`;
-    document.getElementById('closeHistory').addEventListener('click', hideHistoryModal);
-    document.getElementById('clearHistory').addEventListener('click', ()=>{ if(confirm('¿Borrar todo el historial?')){ history={}; saveState(); modal.innerHTML = `<h4>Historial por día</h4><div class="small">Historial borrado.</div><div style="margin-top:12px"><button id="closeHistory2" class="small-btn">Cerrar</button></div>`; document.getElementById('closeHistory2').addEventListener('click', hideHistoryModal); } });
-  }
-  function hideHistoryModal(){ document.getElementById('overlay').style.display='none'; const modal = document.getElementById('historyModal'); if(modal) modal.style.display='none'; }
-  function renderHistoryTable(){ const dates = Object.keys(history).sort().reverse(); if(dates.length === 0) return '<div class="small">No hay historial registrado.</div>'; let html = '<table><thead><tr><th>Fecha</th><th>Intentos</th><th>Correctos</th><th>Errores</th><th>Detalles</th></tr></thead><tbody>'; for(const d of dates){ const day = history[d]; const details = (day.details || []).map(x => `${x.ref} (${x.result})`).join('<br/>'); html += `<tr><td>${d}</td><td>${day.attempted}</td><td>${day.correct}</td><td>${day.errors}</td><td>${details}</td></tr>`; } html += '</tbody></table>'; return html; }
-  function exportHistoryCSV(){ const rows = [['date','attempted','correct','errors','idx','ref','result','timestamp']]; for(const date of Object.keys(history).sort()){ const day = history[date]; if(day.details && day.details.length){ for(const d of day.details){ rows.push([date, day.attempted, day.correct, day.errors, d.idx, `"${d.ref.replace(/"/g,'""')}"`, d.result, d.timestamp]); } } else rows.push([date, day.attempted, day.correct, day.errors, '', '', '', '']); } const csv = rows.map(r => r.join(',')).join('\n'); const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'versiculos_historial.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
 
   /* =========================
-     Cambio de categoría: reconstruye cola y aplica filtro inmediatamente
+     Botón único: Reiniciar todo
+     ========================= */
+  document.getElementById('resetAll').addEventListener('click', ()=>{
+    if(!confirm('¿Deseas reiniciar todo el progreso (practiced, difficulty, historial, colas)?')) return;
+    localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(DATE_KEY);
+    queue = []; errorsQueue = []; practiced = new Set(); difficulty = {}; history = {}; currentIndex = null; completedPerfect.clear(); selectedSet.clear();
+    document.getElementById('sessionArea').style.display='none';
+    renderSelectedSummary();
+    updateCompletedList();
+    updateQueueInfo();
+    alert('Todo el progreso ha sido reiniciado.');
+  });
+
+  /* =========================
+     Cambio de categoría
      ========================= */
   document.getElementById('categoryFilter').addEventListener('change', onCategoryChange);
   function onCategoryChange(){
@@ -804,7 +813,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   /* =========================
-     Mostrar lista de completados 100%
+     Completados 100%
      ========================= */
   function updateCompletedList(){
     const container = document.getElementById('completedItems');
@@ -814,6 +823,47 @@ window.addEventListener('DOMContentLoaded', () => {
     wrapper.style.display='block';
     container.innerHTML = arr.map(r => `<div class="small">${r}</div>`).join('');
   }
+
+  /* =========================
+     Enlace robusto del botón Start
+     ========================= */
+  function onStartClicked(){
+    document.getElementById('sessionArea').style.display='block';
+    prepareDailyQueue(true);
+    const nextIdx = getNextIndex();
+    renderCard(nextIdx);
+  }
+
+  function bindStartButtonOnce(){
+    const btn = document.getElementById('startBtn');
+    if(!btn) return false;
+    btn.removeEventListener('click', onStartClicked);
+    btn.addEventListener('click', onStartClicked);
+    btn.onclick = onStartClicked;
+    console.log('DIAG: startBtn enlazado correctamente');
+    const diag = document.getElementById('__startDiag');
+    if(!diag){
+      const d = document.createElement('div');
+      d.id='__startDiag';
+      d.style.position='fixed';
+      d.style.right='8px';
+      d.style.top='8px';
+      d.style.zIndex=99998;
+      d.style.background='rgba(0,128,0,0.08)';
+      d.style.color='#064';
+      d.style.padding='6px 8px';
+      d.style.borderRadius='6px';
+      d.style.fontSize='12px';
+      d.textContent = 'startBtn enlazado';
+      document.body.appendChild(d);
+      setTimeout(()=>{ if(d) d.remove(); }, 2500);
+    }
+    return true;
+  }
+
+  bindStartButtonOnce();
+  setTimeout(()=>{ bindStartButtonOnce(); }, 500);
+  setTimeout(()=>{ bindStartButtonOnce(); }, 2000);
 
   /* =========================
      Inicialización final
