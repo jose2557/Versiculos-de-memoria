@@ -9,6 +9,7 @@
   h3{margin-top:0}
   .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
   textarea{width:100%;height:120px}
+  input[type="text"]{width:100%;padding:8px;border:1px solid #ccc;border-radius:6px}
   .verse-card{border:1px solid #ddd;padding:12px;border-radius:8px;margin-bottom:12px;background:#fafafa}
   .wrong{color:#b00020}
   .right{color:green}
@@ -40,6 +41,8 @@
   .selected-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0}
   #completedList{margin-top:12px;padding:8px;border:1px dashed #cfc;background:#f7fff7;border-radius:6px}
   #__diagPanel{font-family:system-ui,Segoe UI,Roboto,Arial}
+  .mode-badge{padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:#fff}
+  .timer-display{font-weight:600;margin-left:8px}
 </style>
 </head>
 <body>
@@ -61,6 +64,17 @@
     </select>
   </label>
 
+  <label class="small">Modo:
+    <select id="studyMode" class="filter-select">
+      <option value="normal">Normal (ref → texto)</option>
+      <option value="inverse">Inverso (texto → ref)</option>
+    </select>
+  </label>
+
+  <label class="small toggle">Cronómetro:
+    <input id="enableTimer" type="checkbox" /> <span class="timer-display" id="timerStatus">OFF</span>
+  </label>
+
   <div class="controls-right">
     <button id="startBtn">Iniciar sesión</button>
     <button id="showAllBtn" class="small-btn">Mostrar todos (selector)</button>
@@ -68,7 +82,7 @@
   </div>
 </div>
 
-<p class="small">Si el botón sigue sin responder en iPhone, prueba servir el archivo por HTTP y revisa el panel de errores que aparece en pantalla.</p>
+<p class="small">Activa el modo inverso para practicar citas; activa el cronómetro para medir tiempo por intento.</p>
 
 <hr/>
 
@@ -178,7 +192,60 @@
 })();
 
 /* =========================
-   DOMContentLoaded: toda la app dentro
+   Utilidades: normalización y comparación de referencias
+   ========================= */
+function normalizeRef(r){
+  if(!r) return '';
+  let s = r.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  s = s.replace(/[\u2013\u2014]/g,'-');
+  s = s.replace(/[()\.,\/\\\u2018\u2019\u201C\u201D]/g,'');
+  s = s.replace(/\s+/g,' ').trim().toLowerCase();
+  // normalizar espacios y guiones en rangos: ej "1 corintios 13:1-3" -> "1 corintios 13:1-3"
+  return s;
+}
+// comparar referencias: acepta equivalencias como "juan 3:16" == "Juan 3:16"
+function compareRefs(expectedRef, userInput){
+  const ne = normalizeRef(expectedRef);
+  const nu = normalizeRef(userInput);
+  if(!ne || !nu) return false;
+  // permitir que el usuario escriba "juan 3 16" o "juan 3:16" o "juan 3:16-17"
+  // comparar tokens flexiblemente
+  return ne === nu;
+}
+
+/* =========================
+   Normalización de texto (versículos)
+   ========================= */
+function normalizeText(s){
+  if(!s) return '';
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  s = s.replace(/[^A-Za-z0-9\u00C0-\u017F\s]/g, ' ');
+  s = s.toLowerCase().replace(/\s+/g,' ').trim();
+  return s;
+}
+function tokenize(s){ return s.length? s.split(' ') : []; }
+function compareVersesText(expected, actual){
+  const ne = normalizeText(expected);
+  const na = normalizeText(actual);
+  const te = tokenize(ne);
+  const ta = tokenize(na);
+  const diffs = [];
+  const max = Math.max(te.length, ta.length);
+  let correctCount = 0;
+  for(let i=0;i<max;i++){
+    const we = te[i] || null;
+    const wa = ta[i] || null;
+    if(we === wa && we !== null){ diffs.push({type:'ok', expected:we, actual:wa}); correctCount++; }
+    else if(we !== wa && wa === null){ diffs.push({type:'missing', expected:we, actual:''}); }
+    else if(we !== wa && we === null){ diffs.push({type:'extra', expected:'', actual:wa}); }
+    else { diffs.push({type:'wrong', expected:we, actual:wa}); }
+  }
+  const allOk = diffs.every(d=>d.type==='ok');
+  return {allOk, diffs, score: correctCount/Math.max(1,te.length)};
+}
+
+/* =========================
+   App principal (DOMContentLoaded)
    ========================= */
 window.addEventListener('DOMContentLoaded', () => {
 
@@ -300,7 +367,7 @@ window.addEventListener('DOMContentLoaded', () => {
   ];
 
   /* =========================
-     Categorías y normalización
+     Categorías y tag
      ========================= */
   const categoryLists = {
     discipulado: [
@@ -316,16 +383,6 @@ window.addEventListener('DOMContentLoaded', () => {
       "Proverbios 27:17","1 Corintios 14:40","2 Corintios 7:1","Colosenses 3:2"
     ]
   };
-
-  function normalizeRef(r){
-    if(!r) return '';
-    let s = r.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    s = s.replace(/[\u2013\u2014]/g,'-');
-    s = s.replace(/[()\.,\/\\\u2018\u2019\u201C\u201D]/g,'');
-    s = s.replace(/\s+/g,' ').trim().toLowerCase();
-    return s;
-  }
-
   function tagCategories(){
     const map = {};
     for(const cat of Object.keys(categoryLists)) map[cat] = new Set(categoryLists[cat].map(normalizeRef));
@@ -345,17 +402,21 @@ window.addEventListener('DOMContentLoaded', () => {
   let errorsQueue = [];
   let practiced = new Set();
   let difficulty = {};
-  let history = {};
+  let history = {}; // historial por fecha con tiempo
   let currentIndex = null;
+  let timerEnabled = false;
+  let timerStart = null;
+  let timerInterval = null;
 
-  const STORAGE_KEY = 'versiculos_selector_state_v1';
-  const DATE_KEY = 'versiculos_selector_date_v1';
+  const STORAGE_KEY = 'versiculos_modes_state_v1';
+  const DATE_KEY = 'versiculos_modes_date_v1';
 
   function saveState(){
     const state = {
       queue, errorsQueue, practiced: Array.from(practiced),
       difficulty, history, currentIndex, currentCategory,
-      dailyGoal: document.getElementById('dailyGoal').value
+      dailyGoal: document.getElementById('dailyGoal').value,
+      completedPerfect: Array.from(completedPerfect)
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
@@ -372,6 +433,7 @@ window.addEventListener('DOMContentLoaded', () => {
       currentIndex = s.currentIndex;
       if(s.currentCategory) currentCategory = s.currentCategory;
       if(s.dailyGoal) document.getElementById('dailyGoal').value = s.dailyGoal;
+      if(s.completedPerfect) s.completedPerfect.forEach(r=>completedPerfect.add(r));
       queue = queue.filter(i => matchesCurrentCategory(i));
       errorsQueue = errorsQueue.filter(i => matchesCurrentCategory(i));
       return true;
@@ -379,39 +441,25 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   /* =========================
-     Normalización de texto (compatible Safari)
+     SRS, reencolado y utilidades
      ========================= */
-  function normalizeText(s){
-    if(!s) return '';
-    s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    s = s.replace(/[^A-Za-z0-9\u00C0-\u017F\s]/g, ' ');
-    s = s.toLowerCase().replace(/\s+/g,' ').trim();
-    return s;
+  function ensureDifficulty(){ for(let i=0;i<verses.length;i++){ if(!(i in difficulty)) difficulty[i] = 0; } }
+  function recordDifficulty(idx, wasCorrect){
+    if(!(idx in difficulty)) difficulty[idx] = 0;
+    difficulty[idx] = wasCorrect ? Math.max(0, difficulty[idx]-1) : (difficulty[idx]||0)+1;
+    saveState();
   }
-  function tokenize(s){ return s.length? s.split(' ') : []; }
-  function compareVerses(expected, actual){
-    const ne = normalizeText(expected);
-    const na = normalizeText(actual);
-    const te = tokenize(ne);
-    const ta = tokenize(na);
-    const diffs = [];
-    const max = Math.max(te.length, ta.length);
-    let correctCount = 0;
-    for(let i=0;i<max;i++){
-      const we = te[i] || null;
-      const wa = ta[i] || null;
-      if(we === wa && we !== null){ diffs.push({type:'ok', expected:we, actual:wa}); correctCount++; }
-      else if(we !== wa && wa === null){ diffs.push({type:'missing', expected:we, actual:''}); }
-      else if(we !== wa && we === null){ diffs.push({type:'extra', expected:'', actual:wa}); }
-      else { diffs.push({type:'wrong', expected:we, actual:wa}); }
-    }
-    const allOk = diffs.every(d=>d.type==='ok');
-    return {allOk, diffs, score: correctCount/Math.max(1,te.length)};
+  function ensureHistoryForDate(date){ if(!history[date]) history[date] = {attempted:0, correct:0, errors:0, details: []}; }
+  function recordHistory(idx, result, timeSeconds){
+    const today = new Date().toISOString().slice(0,10);
+    ensureHistoryForDate(today);
+    history[today].attempted++;
+    if(result === 'correct') history[today].correct++;
+    if(result === 'error') history[today].errors++;
+    history[today].details.push({idx, ref: verses[idx].ref, result, timeSeconds: timeSeconds || null, timestamp: new Date().toISOString()});
+    saveState();
   }
 
-  /* =========================
-     Reencolado diferido
-     ========================= */
   function scheduleRequeue(idx, options = {}){
     const minAhead = options.minAhead || 2;
     const maxAhead = options.maxAhead || 6;
@@ -423,23 +471,6 @@ window.addEventListener('DOMContentLoaded', () => {
     let insertPos = ahead;
     if(insertPos > queue.length) insertPos = queue.length;
     queue.splice(insertPos, 0, idx);
-  }
-
-  function ensureDifficulty(){ for(let i=0;i<verses.length;i++){ if(!(i in difficulty)) difficulty[i] = 0; } }
-  function recordDifficulty(idx, wasCorrect){
-    if(!(idx in difficulty)) difficulty[idx] = 0;
-    difficulty[idx] = wasCorrect ? Math.max(0, difficulty[idx]-1) : (difficulty[idx]||0)+1;
-    saveState();
-  }
-  function ensureHistoryForDate(date){ if(!history[date]) history[date] = {attempted:0, correct:0, errors:0, details: []}; }
-  function recordHistory(idx, result){
-    const today = new Date().toISOString().slice(0,10);
-    ensureHistoryForDate(today);
-    history[today].attempted++;
-    if(result === 'correct') history[today].correct++;
-    if(result === 'error') history[today].errors++;
-    history[today].details.push({idx, ref: verses[idx].ref, result, timestamp: new Date().toISOString()});
-    saveState();
   }
 
   function matchesCurrentCategory(idx){
@@ -489,11 +520,10 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   function getNextIndex(){ if(queue.length>0) return queue.shift(); if(errorsQueue.length>0) return errorsQueue.shift(); return null; }
-
-  function updateQueueInfo(){ document.getElementById('queueInfo').textContent = `En cola: ${queue.length}  Errores: ${errorsQueue.length}  Completados: ${practiced.size}  (Filtro: ${currentCategory})`; }
+  function updateQueueInfo(){ document.getElementById('queueInfo').textContent = `En cola: ${queue.length}  Errores: ${errorsQueue.length}  Practicados: ${practiced.size}  (Filtro: ${currentCategory})`; }
 
   /* =========================
-     Selector state (preservado) y completados
+     Selector state y completados
      ========================= */
   const selectedSet = new Set();
   const completedPerfect = new Set();
@@ -654,7 +684,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('overlay').style.display = 'block';
     verseAddBtn.onclick = ()=>{ selectedSet.add(idx); renderSelectedSummary(); addSingleToQueue(idx); alert('Versículo añadido a la cola.'); };
     versePracticeNowBtn.onclick = ()=>{ selectedSet.add(idx); renderSelectedSummary(); practiceSingleNow(idx); };
-    verseDontKnowBtn.onclick = ()=>{ selectedSet.add(idx); renderSelectedSummary(); scheduleRequeue(idx, {minAhead:2, maxAhead:6}); recordHistory(idx, 'error'); recordDifficulty(idx, false); saveState(); alert('Versículo mostrado y programado para repetición.'); };
+    verseDontKnowBtn.onclick = ()=>{ selectedSet.add(idx); renderSelectedSummary(); scheduleRequeue(idx, {minAhead:2, maxAhead:6}); recordHistory(idx, 'error', null); recordDifficulty(idx, false); saveState(); alert('Versículo mostrado y programado para repetición.'); };
     verseCloseBtn.onclick = ()=>{ verseModal.style.display='none'; document.getElementById('overlay').style.display='none'; };
   }
 
@@ -679,7 +709,33 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   /* =========================
-     Flujo de práctica y UI
+     Cronómetro helpers
+     ========================= */
+  function startTimerUI(){
+    if(!document.getElementById('enableTimer').checked) return;
+    timerEnabled = true;
+    timerStart = Date.now();
+    const display = document.getElementById('timerStatus');
+    display.textContent = 'ON';
+    // no need for interval unless you want live display; we store elapsed on check
+  }
+  function stopTimerUI(){
+    timerEnabled = false;
+    const display = document.getElementById('timerStatus');
+    display.textContent = document.getElementById('enableTimer').checked ? 'ON' : 'OFF';
+    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+    const elapsed = timerStart ? Math.round((Date.now() - timerStart)/1000) : null;
+    timerStart = null;
+    return elapsed;
+  }
+
+  document.getElementById('enableTimer').addEventListener('change', ()=>{
+    const on = document.getElementById('enableTimer').checked;
+    document.getElementById('timerStatus').textContent = on ? 'ON' : 'OFF';
+  });
+
+  /* =========================
+     Flujo de práctica y UI (soporta modos)
      ========================= */
   function renderCard(idx){
     const container = document.getElementById('cardContainer');
@@ -694,21 +750,31 @@ window.addEventListener('DOMContentLoaded', () => {
     currentIndex = idx;
     const v = verses[idx];
     const cats = (v.categories || []).map(c => `<span class="category-badge">${c}</span>`).join(' ');
+    const mode = document.getElementById('studyMode').value || 'normal';
     const card = document.createElement('div');
     card.className='verse-card';
-    card.innerHTML = `<div><strong>Referencia:</strong> ${v.ref} ${cats}</div>
-      <div class="small" style="margin-top:6px">Escribe el versículo (ignora acentos, puntuación y mayúsculas)</div>
-      <textarea id="answerArea" placeholder="Escribe aquí el versículo"></textarea>
-      <div id="resultArea" style="margin-top:8px"></div>`;
+    if(mode === 'normal'){
+      card.innerHTML = `<div><strong>Referencia:</strong> ${v.ref} ${cats}</div>
+        <div class="small" style="margin-top:6px">Escribe el versículo (ignora acentos, puntuación y mayúsculas)</div>
+        <textarea id="answerArea" placeholder="Escribe aquí el versículo"></textarea>
+        <div id="resultArea" style="margin-top:8px"></div>`;
+    } else {
+      card.innerHTML = `<div><strong>Texto del versículo:</strong> <div style="margin-top:6px">${v.text}</div> ${cats}</div>
+        <div class="small" style="margin-top:6px">Escribe la referencia (ej: Juan 3:16)</div>
+        <input id="answerArea" type="text" placeholder="Escribe aquí la referencia" />
+        <div id="resultArea" style="margin-top:8px"></div>`;
+    }
     container.appendChild(card);
     document.getElementById('checkBtn').style.display='inline-block';
     document.getElementById('skipBtn').style.display='inline-block';
     document.getElementById('dontKnowBtn').style.display='inline-block';
     document.getElementById('nextBtn').style.display='none';
+    // iniciar cronómetro si está activado
+    if(document.getElementById('enableTimer').checked) startTimerUI(); else timerStart = null;
     saveState();
   }
 
-  function showDiffResult(res){
+  function showDiffResultText(res){
     const ra = document.getElementById('resultArea'); ra.innerHTML = '';
     const expDiv = document.createElement('div'); expDiv.innerHTML = '<strong>Comparación palabra a palabra:</strong>'; ra.appendChild(expDiv);
     const line = document.createElement('div');
@@ -726,24 +792,51 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('checkBtn').addEventListener('click', ()=>{
-    const ans = document.getElementById('answerArea').value || '';
+    const ans = (document.getElementById('answerArea').value || '').trim();
+    if(currentIndex == null){ alert('No hay versículo activo.'); return; }
     const v = verses[currentIndex];
-    const res = compareVerses(v.text, ans);
-    showDiffResult(res);
-    if(res.allOk){
-      practiced.add(currentIndex);
-      recordDifficulty(currentIndex, true);
-      recordHistory(currentIndex, 'correct');
-      completedPerfect.add(verses[currentIndex].ref);
-      updateCompletedList();
-      document.getElementById('feedback').textContent = 'Correcto'; document.getElementById('feedback').className='small right';
-      document.getElementById('nextBtn').style.display='inline-block'; document.getElementById('checkBtn').style.display='none'; document.getElementById('skipBtn').style.display='none'; document.getElementById('dontKnowBtn').style.display='none';
-    } else {
-      scheduleRequeue(currentIndex, {minAhead:2, maxAhead:6});
-      recordDifficulty(currentIndex, false);
-      recordHistory(currentIndex, 'error');
-      document.getElementById('feedback').textContent = 'Hay errores. Se repetirá más adelante.'; document.getElementById('feedback').className='small wrong';
-      document.getElementById('nextBtn').style.display='inline-block';
+    const mode = document.getElementById('studyMode').value || 'normal';
+    const elapsed = timerStart ? Math.round((Date.now() - timerStart)/1000) : null;
+    // detener timer
+    const timeRecorded = stopTimerUI();
+    if(mode === 'normal'){
+      const res = compareVersesText(v.text, ans);
+      showDiffResultText(res);
+      if(res.allOk){
+        practiced.add(currentIndex);
+        recordDifficulty(currentIndex, true);
+        recordHistory(currentIndex, 'correct', timeRecorded);
+        completedPerfect.add(verses[currentIndex].ref);
+        updateCompletedList();
+        document.getElementById('feedback').textContent = `Correcto — tiempo: ${timeRecorded!==null?timeRecorded+'s':'--'}`; document.getElementById('feedback').className='small right';
+        document.getElementById('nextBtn').style.display='inline-block'; document.getElementById('checkBtn').style.display='none'; document.getElementById('skipBtn').style.display='none'; document.getElementById('dontKnowBtn').style.display='none';
+      } else {
+        scheduleRequeue(currentIndex, {minAhead:2, maxAhead:6});
+        recordDifficulty(currentIndex, false);
+        recordHistory(currentIndex, 'error', timeRecorded);
+        document.getElementById('feedback').textContent = `Hay errores. Se repetirá más adelante — tiempo: ${timeRecorded!==null?timeRecorded+'s':'--'}`; document.getElementById('feedback').className='small wrong';
+        document.getElementById('nextBtn').style.display='inline-block';
+      }
+    } else { // modo inverso: comparar referencias
+      const ok = compareRefs(v.ref, ans);
+      const ra = document.getElementById('resultArea'); ra.innerHTML = '';
+      if(ok){
+        practiced.add(currentIndex);
+        recordDifficulty(currentIndex, true);
+        recordHistory(currentIndex, 'correct', timeRecorded);
+        completedPerfect.add(verses[currentIndex].ref);
+        updateCompletedList();
+        ra.innerHTML = `<div class="small right">Referencia correcta: <strong>${v.ref}</strong></div>`;
+        document.getElementById('feedback').textContent = `Correcto — tiempo: ${timeRecorded!==null?timeRecorded+'s':'--'}`; document.getElementById('feedback').className='small right';
+        document.getElementById('nextBtn').style.display='inline-block'; document.getElementById('checkBtn').style.display='none'; document.getElementById('skipBtn').style.display='none'; document.getElementById('dontKnowBtn').style.display='none';
+      } else {
+        scheduleRequeue(currentIndex, {minAhead:2, maxAhead:6});
+        recordDifficulty(currentIndex, false);
+        recordHistory(currentIndex, 'error', timeRecorded);
+        ra.innerHTML = `<div class="small wrong">Referencia incorrecta. Esperada: <strong>${v.ref}</strong></div>`;
+        document.getElementById('feedback').textContent = `Incorrecto — tiempo: ${timeRecorded!==null?timeRecorded+'s':'--'}`; document.getElementById('feedback').className='small wrong';
+        document.getElementById('nextBtn').style.display='inline-block';
+      }
     }
     updateQueueInfo(); saveState();
   });
@@ -753,7 +846,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if(idx == null) return;
     openVerseModal(idx);
     scheduleRequeue(idx, {minAhead:2, maxAhead:6});
-    recordHistory(idx, 'error');
+    recordHistory(idx, 'error', stopTimerUI());
     recordDifficulty(idx, false);
     updateQueueInfo(); saveState();
   });
@@ -761,7 +854,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('skipBtn').addEventListener('click', ()=>{
     if(currentIndex != null){
       scheduleRequeue(currentIndex, {minAhead:3, maxAhead:8});
-      recordHistory(currentIndex, 'error'); recordDifficulty(currentIndex, false);
+      recordHistory(currentIndex, 'error', stopTimerUI()); recordDifficulty(currentIndex, false);
     }
     document.getElementById('feedback').textContent = 'Saltado. Se repetirá más adelante.'; document.getElementById('feedback').className='small wrong';
     saveState(); nextFlow();
@@ -769,10 +862,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('nextBtn').addEventListener('click', nextFlow);
   function nextFlow(){ const nextIdx = getNextIndex(); if(nextIdx===null) renderCard(null); else renderCard(nextIdx); updateQueueInfo(); saveState(); }
-
-  /* =========================
-     Historial mínimo y export omitido (botones eliminados)
-     ========================= */
 
   /* =========================
      Botón único: Reiniciar todo
@@ -789,7 +878,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   /* =========================
-     Cambio de categoría
+     Cambio de categoría: aplica filtro inmediatamente
      ========================= */
   document.getElementById('categoryFilter').addEventListener('change', onCategoryChange);
   function onCategoryChange(){
@@ -809,7 +898,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if(document.getElementById('sessionArea').style.display !== 'none'){
       const nextIdx = getNextIndex(); renderCard(nextIdx);
     }
-    alert(`Filtro aplicado: "${sel}". Cola actualizada con ${queue.length} versículo(s).`);
+    // no alert para UX más fluida
   }
 
   /* =========================
@@ -883,5 +972,3 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
-
