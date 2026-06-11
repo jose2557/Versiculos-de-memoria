@@ -81,17 +81,18 @@ input[type=number].ctrl-num{background:var(--bg3);color:var(--text);border:1px s
 .verse-cat{display:inline-block;font-size:0.7rem;padding:2px 8px;background:var(--bg2);color:var(--gold3);border:1px solid var(--border2);border-radius:20px;margin-bottom:8px}
 .verse-text-display{font-family:var(--font-serif);font-size:1rem;color:var(--text);line-height:1.7;font-style:italic}
 .verse-hint{font-size:0.78rem;color:var(--text3);margin-top:8px}
-textarea.answer-ta{width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:0.9rem;resize:vertical;min-height:80px;font-family:var(--font-sans)}
+textarea.answer-ta{width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:0.9rem;resize:vertical;min-height:80px;font-family:var(--font-sans);box-sizing:border-box}
 textarea.answer-ta:focus,input.answer-in:focus{outline:none;border-color:var(--gold3)}
-input.answer-in{width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:0.9rem}
+input.answer-in{width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:0.9rem;box-sizing:border-box}
+#v-card-wrap{width:100%;overflow:hidden;min-width:0}
 
 /* ---- DIFF ---- */
-.diff-area{margin-top:10px;padding:10px;background:var(--bg4);border-radius:8px;font-family:var(--font-serif);font-size:0.9rem;line-height:1.8}
-.dw{display:inline;padding:1px 3px;border-radius:3px;margin:1px}
+.diff-area{margin-top:10px;padding:10px;background:var(--bg4);border-radius:8px;font-family:var(--font-serif);font-size:0.9rem;line-height:1.9;overflow-wrap:break-word;word-break:break-word;width:100%;box-sizing:border-box}
+.dw{display:inline;padding:1px 3px;border-radius:3px;margin:1px 2px;white-space:normal;word-break:break-word}
 .dw.ok{color:var(--green)}
-.dw.wrong{background:rgba(224,92,92,.18);color:var(--red);text-decoration:line-through;font-size:.8em}
+.dw.wrong{background:rgba(224,92,92,.18);color:var(--red);text-decoration:line-through;font-size:.85em}
 .dw.missing{background:rgba(201,168,76,.15);color:var(--gold2)}
-.dw.extra{background:rgba(224,92,92,.1);color:var(--text3);font-size:.8em}
+.dw.extra{background:rgba(224,92,92,.1);color:var(--text3);font-size:.85em}
 .accuracy{font-size:0.8rem;color:var(--text2);margin-top:6px}
 
 /* ---- FEEDBACK ---- */
@@ -1137,12 +1138,12 @@ function vCheck(){
   if(vMode==='normal'){
     const res=diffWords(v.text,ans);
     if(diff){
-      let html='<div class="diff-area">';
+      let html='<div class="diff-area" style="overflow:hidden;max-width:100%">';
       res.diffs.forEach(d=>{
-        if(d.t==='ok')html+=`<span class="dw ok">${d.e}</span>`;
-        else if(d.t==='wrong')html+=`<span class="dw wrong">${d.a}</span><span class="dw missing">${d.e}</span>`;
-        else if(d.t==='missing')html+=`<span class="dw missing">${d.e}</span>`;
-        else html+=`<span class="dw extra">${d.a}</span>`;
+        if(d.t==='ok')html+=`<span class="dw ok">${d.e}</span> `;
+        else if(d.t==='wrong')html+=`<span class="dw wrong">${d.a}</span><span class="dw missing">${d.e}</span> `;
+        else if(d.t==='missing')html+=`<span class="dw missing">${d.e}</span> `;
+        else html+=`<span class="dw extra">${d.a}</span> `;
       });
       html+=`</div><div class="accuracy">Precisión: ${Math.round(res.score*100)}%</div>`;
       diff.innerHTML=html;
