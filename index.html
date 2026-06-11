@@ -1,974 +1,1502 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Versículos De Memoria</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Estudio Bíblico</title>
 <style>
-  body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:16px;line-height:1.45}
-  h3{margin-top:0}
-  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-  textarea{width:100%;height:120px}
-  input[type="text"]{width:100%;padding:8px;border:1px solid #ccc;border-radius:6px}
-  .verse-card{border:1px solid #ddd;padding:12px;border-radius:8px;margin-bottom:12px;background:#fafafa}
-  .wrong{color:#b00020}
-  .right{color:green}
-  .diff-word{padding:2px 6px;border-radius:4px;margin:3px;display:inline-block}
-  .diff-expected{background:#e6f7ff}
-  .diff-missing{background:#ffe6e6}
-  .small{font-size:0.9rem;color:#555}
-  button{padding:8px 12px}
-  .meta{margin-bottom:8px}
-  #historyModal,#selectorModal,#verseModal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:white;border:1px solid #ccc;padding:16px;z-index:9999;max-width:95%;max-height:85%;overflow:auto;display:none;border-radius:8px}
-  #overlay{position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.4);display:none;z-index:998}
-  table{border-collapse:collapse;width:100%}
-  th,td{border:1px solid #ddd;padding:6px;text-align:left}
-  .small-btn{padding:6px 8px;font-size:0.9rem}
-  .toggle{display:inline-flex;align-items:center;gap:6px}
-  .verse-row{display:flex;align-items:flex-start;gap:8px;padding:8px;border-bottom:1px solid #eee}
-  .verse-ref{font-weight:600;width:22%}
-  .verse-text{width:58%}
-  .selector-actions{display:flex;gap:6px;align-items:center}
-  .search-input{width:100%;padding:8px;margin-bottom:8px;border:1px solid #ccc;border-radius:6px}
-  .btn-link{background:none;border:none;color:#0066cc;cursor:pointer;padding:0;font-size:0.95rem}
-  .category-badge{display:inline-block;padding:4px 8px;border-radius:12px;background:#eef;border:1px solid #cce;margin-right:6px;font-size:0.85rem}
-  .filter-select{padding:6px;border-radius:6px;border:1px solid #ccc}
-  .controls-right{margin-left:auto;display:flex;gap:8px;align-items:center}
-  .muted{color:#666;font-size:0.9rem}
-  .selector-container{display:flex;gap:12px}
-  .selector-list{flex:1;max-height:55vh;overflow:auto;border-top:1px solid #eee;padding-top:8px}
-  .selected-summary{width:320px;border-left:1px solid #eee;padding-left:12px;max-height:55vh;overflow:auto}
-  .selected-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0}
-  #completedList{margin-top:12px;padding:8px;border:1px dashed #cfc;background:#f7fff7;border-radius:6px}
-  #__diagPanel{font-family:system-ui,Segoe UI,Roboto,Arial}
-  .mode-badge{padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:#fff}
-  .timer-display{font-weight:600;margin-left:8px}
+:root{
+  --bg:#0f0f1a;--bg2:#1a1a2e;--bg3:#16213e;--bg4:#0d1b2a;
+  --gold:#c9a84c;--gold2:#e8c86e;--gold3:#a07830;
+  --text:#e8dcc8;--text2:#b8a88a;--text3:#887868;
+  --green:#4caf7d;--red:#e05c5c;--blue:#5b8dee;
+  --border:#2a2a40;--border2:#3a3a55;
+  --card:#1e1e32;--card2:#252540;
+  --radius:10px;--radius2:16px;
+  --font-serif:'Georgia',serif;
+  --font-sans:system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+a{color:var(--gold)}
+
+/* ---- LAYOUT ---- */
+#root{display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;gap:8px;height:52px;position:sticky;top:0;z-index:100}
+.topbar-logo{font-family:var(--font-serif);font-size:1.1rem;color:var(--gold);font-weight:bold;margin-right:auto}
+.tab-btn{background:none;border:none;color:var(--text2);cursor:pointer;padding:6px 14px;border-radius:20px;font-size:0.88rem;transition:all .2s}
+.tab-btn.active{background:var(--gold);color:#0f0f1a;font-weight:600}
+.tab-btn:hover:not(.active){background:var(--border);color:var(--text)}
+.content{flex:1;padding:16px;max-width:780px;margin:0 auto;width:100%}
+
+/* ---- RACHA ---- */
+.streak-bar{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.streak-fire{font-size:1.6rem}
+.streak-info{flex:1}
+.streak-label{font-size:0.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.streak-num{font-size:1.5rem;font-weight:700;color:var(--gold);line-height:1}
+.streak-dots{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--border2);transition:background .3s}
+.dot.done{background:var(--gold)}
+.dot.today{background:var(--gold2);box-shadow:0 0 6px var(--gold)}
+.stats-mini{display:flex;gap:12px}
+.stat-mini{text-align:center}
+.stat-mini .val{font-size:1.1rem;font-weight:700;color:var(--text)}
+.stat-mini .lbl{font-size:0.7rem;color:var(--text3)}
+
+/* ---- CARDS generales ---- */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius2);padding:16px;margin-bottom:12px}
+.card2{background:var(--card2)}
+.section-title{font-size:0.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+
+/* ---- VERSÍCULOS ---- */
+.controls-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+label.ctrl-label{font-size:0.8rem;color:var(--text2);display:flex;align-items:center;gap:5px}
+select.ctrl-sel{background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:5px 9px;font-size:0.83rem;cursor:pointer}
+input[type=number].ctrl-num{background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:5px;width:56px;font-size:0.83rem;text-align:center}
+.toggle-sw{position:relative;width:34px;height:18px;flex-shrink:0}
+.toggle-sw input{opacity:0;width:0;height:0;position:absolute}
+.sw-track{position:absolute;inset:0;background:var(--border2);border-radius:9px;cursor:pointer;transition:.2s}
+.sw-track:before{content:'';position:absolute;width:12px;height:12px;left:3px;top:3px;background:var(--text3);border-radius:50%;transition:.2s}
+.toggle-sw input:checked+.sw-track{background:var(--gold3)}
+.toggle-sw input:checked+.sw-track:before{transform:translateX(16px);background:var(--gold)}
+.btn{background:var(--card2);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:0.85rem;transition:all .15s}
+.btn:hover{border-color:var(--gold3);color:var(--gold)}
+.btn.primary{background:var(--gold);color:#0f0f1a;border-color:var(--gold);font-weight:600}
+.btn.primary:hover{background:var(--gold2)}
+.btn.danger{border-color:var(--red);color:var(--red)}
+.btn.success-btn{background:var(--green);color:#0f0f1a;border-color:var(--green);font-weight:600}
+.btn.success-btn:hover{opacity:.9}
+.btn-sm{padding:5px 10px;font-size:0.78rem}
+
+/* ---- TARJETA VERSÍCULO ---- */
+.verse-flip-wrap{perspective:1000px;margin-bottom:14px}
+.verse-flip{position:relative;transition:transform .5s;transform-style:preserve-3d;min-height:140px}
+.verse-flip.flipped{transform:rotateY(180deg)}
+.verse-face{position:absolute;width:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--card);border:1px solid var(--border);border-radius:var(--radius2);padding:20px;min-height:140px;display:flex;flex-direction:column;justify-content:center}
+.verse-face.back{transform:rotateY(180deg);background:var(--bg3)}
+/* spacer invisible que ocupa el mismo alto que la tarjeta para que el textarea quede debajo */
+.verse-flip-spacer{visibility:hidden;pointer-events:none;padding:20px;min-height:140px}
+.verse-ref{font-size:1.1rem;font-weight:700;color:var(--gold);font-family:var(--font-serif);margin-bottom:4px}
+.verse-cat{display:inline-block;font-size:0.7rem;padding:2px 8px;background:var(--bg2);color:var(--gold3);border:1px solid var(--border2);border-radius:20px;margin-bottom:8px}
+.verse-text-display{font-family:var(--font-serif);font-size:1rem;color:var(--text);line-height:1.7;font-style:italic}
+.verse-hint{font-size:0.78rem;color:var(--text3);margin-top:8px}
+textarea.answer-ta{width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:0.9rem;resize:vertical;min-height:80px;font-family:var(--font-sans)}
+textarea.answer-ta:focus,input.answer-in:focus{outline:none;border-color:var(--gold3)}
+input.answer-in{width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:0.9rem}
+
+/* ---- DIFF ---- */
+.diff-area{margin-top:10px;padding:10px;background:var(--bg4);border-radius:8px;font-family:var(--font-serif);font-size:0.9rem;line-height:1.8}
+.dw{display:inline;padding:1px 3px;border-radius:3px;margin:1px}
+.dw.ok{color:var(--green)}
+.dw.wrong{background:rgba(224,92,92,.18);color:var(--red);text-decoration:line-through;font-size:.8em}
+.dw.missing{background:rgba(201,168,76,.15);color:var(--gold2)}
+.dw.extra{background:rgba(224,92,92,.1);color:var(--text3);font-size:.8em}
+.accuracy{font-size:0.8rem;color:var(--text2);margin-top:6px}
+
+/* ---- FEEDBACK ---- */
+.feedback-bar{padding:8px 12px;border-radius:8px;font-size:0.85rem;margin-top:8px}
+.feedback-bar.correct{background:rgba(76,175,125,.15);color:var(--green);border:1px solid rgba(76,175,125,.3)}
+.feedback-bar.wrong{background:rgba(224,92,92,.15);color:var(--red);border:1px solid rgba(224,92,92,.3)}
+.feedback-bar.skip{background:rgba(255,255,255,.05);color:var(--text2)}
+
+/* ---- ACCIÓN BOTONES ---- */
+.action-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.queue-info{font-size:0.75rem;color:var(--text3);padding:4px 0}
+.completed-box{background:rgba(76,175,125,.08);border:1px solid rgba(76,175,125,.2);border-radius:8px;padding:10px 12px;margin-top:10px}
+.completed-box .lbl{font-size:0.72rem;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.completed-ref{font-size:0.82rem;color:var(--text2);padding:2px 0}
+
+/* ---- SELECTOR MODAL ---- */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2) var(--radius2) 0 0;padding:16px;width:100%;max-width:780px;max-height:85vh;overflow:auto}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.modal-title{font-size:0.9rem;font-weight:600;color:var(--text)}
+.search-in{width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:0.85rem;margin-bottom:10px}
+.search-in:focus{outline:none;border-color:var(--gold3)}
+.verse-row-sel{display:flex;align-items:flex-start;gap:8px;padding:8px;border-bottom:1px solid var(--border);font-size:0.82rem}
+.verse-row-sel:hover{background:var(--card)}
+.verse-row-sel input{margin-top:3px;accent-color:var(--gold);flex-shrink:0}
+.vrs-ref2{font-weight:600;color:var(--gold);min-width:130px;font-size:.8rem}
+.vrs-txt2{color:var(--text2);flex:1;font-style:italic;font-size:.78rem}
+.sel-actions2{display:flex;gap:4px;flex-shrink:0}
+
+/* ---- TOOLTIPS ---- */
+.tip-wrap{position:relative;display:inline-flex;align-items:center}
+.tip-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--border2);color:var(--text3);font-size:9px;font-weight:700;cursor:help;margin-left:3px;flex-shrink:0;line-height:1}
+.tip-box{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;font-size:0.75rem;color:var(--text2);white-space:nowrap;z-index:999;pointer-events:none;opacity:0;transition:opacity .15s;max-width:220px;white-space:normal;text-align:left;min-width:160px}
+.tip-wrap:hover .tip-box{opacity:1}
+
+/* ---- VERSÍCULOS — PANEL CATEGORÍAS ---- */
+.cat-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.cat-tab{background:var(--card2);border:1px solid var(--border2);border-radius:20px;padding:5px 14px;font-size:0.8rem;color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap}
+.cat-tab:hover{border-color:var(--gold3);color:var(--gold)}
+.cat-tab.active{background:var(--gold);color:#0f0f1a;border-color:var(--gold);font-weight:600}
+.cat-section{display:none}
+.cat-section.visible{display:block}
+.month-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-bottom:12px}
+.month-btn{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 8px;cursor:pointer;text-align:center;transition:all .15s}
+.month-btn:hover{border-color:var(--gold3);background:var(--card2)}
+.month-btn.selected{border-color:var(--gold);background:rgba(201,168,76,.12)}
+.month-btn .m-name{font-weight:600;color:var(--text);font-size:0.83rem}
+.month-btn .m-count{font-size:0.7rem;color:var(--text3);margin-top:2px}
+/* preview versículos de categoría */
+.cat-preview{background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:10px}
+.cat-preview-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;user-select:none;border-bottom:1px solid transparent;transition:border-color .2s}
+.cat-preview-hdr.open{border-bottom-color:var(--border)}
+.cat-preview-hdr .ph-label{font-size:0.78rem;color:var(--text2)}
+.cat-preview-hdr .ph-count{font-size:0.72rem;color:var(--text3);margin-left:auto;margin-right:8px}
+.cat-preview-hdr .ph-arrow{font-size:0.65rem;color:var(--text3);transition:transform .2s;display:inline-block}
+.cat-preview-hdr.open .ph-arrow{transform:rotate(180deg)}
+.cat-preview-list{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.cat-preview-list.open{max-height:260px;overflow-y:auto}
+.cat-prev-item{display:flex;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);font-size:0.78rem;align-items:baseline}
+.cat-prev-item:last-child{border-bottom:none}
+.cat-prev-num{color:var(--gold3);font-weight:700;min-width:20px;font-size:0.72rem}
+.cat-prev-ref{color:var(--gold);min-width:140px;font-weight:600;font-size:0.78rem;flex-shrink:0}
+.cat-prev-txt{color:var(--text3);font-style:italic;font-size:0.72rem;line-height:1.4}
+.cat-start-row{display:flex;gap:8px;align-items:center;margin-top:10px}
+/* evaluador cat-grid (sin cambios) */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:8px}
+.cat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 12px;cursor:pointer;text-align:center;transition:all .15s}
+.cat-card:hover{border-color:var(--gold3);background:var(--card2)}
+.cat-card.active{border-color:var(--gold);background:rgba(201,168,76,.1)}
+.cat-icon{font-size:1.6rem;margin-bottom:6px}
+.cat-name{font-size:0.82rem;font-weight:600;color:var(--text)}
+.cat-count{font-size:0.72rem;color:var(--text3);margin-top:2px}
+
+.quiz-progress{height:4px;background:var(--border);border-radius:2px;margin-bottom:14px;overflow:hidden}
+.quiz-progress-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .3s}
+.quiz-num{font-size:0.75rem;color:var(--text3);text-align:right;margin-bottom:8px}
+.quiz-source{font-size:0.7rem;color:var(--gold3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.quiz-q{font-size:1rem;color:var(--text);margin-bottom:14px;line-height:1.6;font-family:var(--font-serif);font-style:italic}
+
+/* ---- RESULTADO FINAL ---- */
+.result-circle{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;margin:0 auto 12px;border:3px solid var(--gold)}
+.error-item-q{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.82rem}
+.error-source{font-size:.7rem;color:var(--gold3);white-space:nowrap}
+.error-q-text{color:var(--text2);flex:1}
+.error-ans{color:var(--green);font-weight:600;white-space:nowrap}
+
+/* ---- MENÚ INICIO ---- */
+.home-hero{text-align:center;padding:20px 0 16px}
+.home-title{font-family:var(--font-serif);font-size:1.8rem;color:var(--gold);margin-bottom:4px}
+.home-sub{font-size:.85rem;color:var(--text2)}
+.module-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.module-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius2);padding:20px 16px;cursor:pointer;transition:all .2s;text-align:center}
+.module-card:hover{border-color:var(--gold);transform:translateY(-2px)}
+.module-icon{font-size:2rem;margin-bottom:8px;color:var(--gold)}
+.module-name{font-weight:700;color:var(--text);margin-bottom:4px}
+.module-desc{font-size:.78rem;color:var(--text3)}
+.versiculo-dia{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:0 var(--radius) var(--radius) 0;padding:14px 16px;margin-top:16px}
+.vd-label{font-size:.7rem;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.vd-text{font-family:var(--font-serif);font-size:.95rem;color:var(--text);font-style:italic;line-height:1.6;margin-bottom:4px}
+.vd-ref{font-size:.78rem;color:var(--text2)}
+@media(max-width:500px){
+  .module-grid{grid-template-columns:1fr}
+  .topbar-logo{font-size:.95rem}
+  .tab-btn{padding:5px 10px;font-size:.8rem}
+}
 </style>
 </head>
 <body>
-
-<h3>Versículos De Memoria</h3>
-
-<div class="controls">
-  <label class="small">Meta diaria:
-    <input id="dailyGoal" type="number" min="1" value="5" style="width:70px"/>
-  </label>
-
-  <label class="toggle small"><input id="enableSRS" type="checkbox" checked/> Usar SRS</label>
-
-  <label class="small">Filtrar categoría:
-    <select id="categoryFilter" class="filter-select">
-      <option value="all">Todas</option>
-      <option value="discipulado">Discipulado</option>
-      <option value="visiones">Visiones</option>
-    </select>
-  </label>
-
-  <label class="small">Modo:
-    <select id="studyMode" class="filter-select">
-      <option value="normal">Normal (ref → texto)</option>
-      <option value="inverse">Inverso (texto → ref)</option>
-    </select>
-  </label>
-
-  <label class="small toggle">Cronómetro:
-    <input id="enableTimer" type="checkbox" /> <span class="timer-display" id="timerStatus">OFF</span>
-  </label>
-
-  <div class="controls-right">
-    <button id="startBtn">Iniciar sesión</button>
-    <button id="showAllBtn" class="small-btn">Mostrar todos (selector)</button>
-    <button id="resetAll" class="small-btn">Reiniciar todo</button>
+<div id="root">
+  <div class="topbar">
+    <span class="topbar-logo">✦ Biblia</span>
+    <button class="tab-btn active" onclick="showTab('home')" id="tb-home">Inicio</button>
+    <button class="tab-btn" onclick="showTab('vers')" id="tb-vers">Versículos</button>
+    <button class="tab-btn" onclick="showTab('eval')" id="tb-eval">Evaluador</button>
   </div>
-</div>
-
-<p class="small">Activa el modo inverso para practicar citas; activa el cronómetro para medir tiempo por intento.</p>
-
-<hr/>
-
-<div id="sessionArea" style="display:none">
-  <div class="meta small">Versículos en cola: <span id="todayCount">0</span></div>
-  <div id="queueInfo" class="small" style="margin-bottom:8px"></div>
-
-  <div id="cardContainer"></div>
-
-  <div style="display:flex;gap:8px;align-items:center">
-    <button id="checkBtn">Comprobar</button>
-    <button id="dontKnowBtn" class="small-btn">No me lo sé</button>
-    <button id="skipBtn">Saltar</button>
-    <button id="nextBtn" style="display:none">Siguiente</button>
-    <div id="feedback" class="small" style="margin-left:12px"></div>
-  </div>
-
-  <div id="completedList" class="small" style="display:none">
-    <strong>Completados 100%:</strong>
-    <div id="completedItems" style="margin-top:8px"></div>
-  </div>
-</div>
-
-<div id="overlay"></div>
-
-<!-- Modal: Selector -->
-<div id="selectorModal" aria-hidden="true">
-  <h4>Seleccionar versículos</h4>
-  <input id="selectorSearch" class="search-input" placeholder="Buscar por referencia, texto o categoría..." />
-  <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center">
-    <button id="selectAllBtn" class="small-btn">Seleccionar todo</button>
-    <button id="clearSelectionBtn" class="small-btn">Limpiar visibles</button>
-    <button id="addSelectedBtn" class="small-btn">Añadir seleccionados</button>
-    <button id="practiceSelectedBtn" class="small-btn">Practicar seleccionados</button>
-    <button id="closeSelectorBtn" class="small-btn">Cerrar</button>
-    <div style="margin-left:auto" class="muted">Seleccionados: <span id="selectedCount">0</span></div>
-  </div>
-
-  <div class="selector-container">
-    <div class="selector-list" id="selectorList"></div>
-    <div class="selected-summary" id="selectedSummary">
-      <strong>Lista de seleccionados</strong>
-      <div id="selectedListItems" style="margin-top:8px"></div>
-      <div style="margin-top:8px">
-        <button id="clearSelectedBtn" class="small-btn">Quitar todos</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Verse quick view -->
-<div id="verseModal" aria-hidden="true">
-  <h4 id="verseModalRef">Referencia</h4>
-  <div id="verseModalText" style="margin-bottom:12px"></div>
-  <div style="display:flex;gap:8px">
-    <button id="verseAddBtn" class="small-btn">Añadir a la cola</button>
-    <button id="versePracticeNowBtn" class="small-btn">Practicar ahora</button>
-    <button id="verseDontKnowBtn" class="small-btn">No me lo sé</button>
-    <button id="verseCloseBtn" class="small-btn">Cerrar</button>
+  <div class="content">
+    <div id="tab-home"></div>
+    <div id="tab-vers" style="display:none"></div>
+    <div id="tab-eval" style="display:none"></div>
   </div>
 </div>
 
 <script>
-/* =========================
-   Panel de diagnóstico (captura errores)
-   ========================= */
-(function(){
-  window.__diagErrors = [];
-  window.addEventListener('error', function(e){
-    window.__diagErrors.push(`${e.message} at ${e.filename}:${e.lineno}:${e.colno}`);
-    showDiagPanel();
-  });
-  window.addEventListener('unhandledrejection', function(e){
-    window.__diagErrors.push('Promise rejection: ' + (e.reason && e.reason.message ? e.reason.message : JSON.stringify(e.reason)));
-    showDiagPanel();
-  });
-  function showDiagPanel(){
-    if(document.getElementById('__diagPanel')) {
-      updateDiagList();
-      return;
-    }
-    const p = document.createElement('div');
-    p.id='__diagPanel';
-    p.style.position='fixed';
-    p.style.left='8px';
-    p.style.top='8px';
-    p.style.zIndex=99999;
-    p.style.maxWidth='95%';
-    p.style.maxHeight='40%';
-    p.style.overflow='auto';
-    p.style.background='rgba(0,0,0,0.85)';
-    p.style.color='white';
-    p.style.padding='10px';
-    p.style.borderRadius='8px';
-    p.style.fontSize='12px';
-    p.innerHTML = `<strong>Errores JS detectados</strong><div id="__diagList" style="margin-top:8px"></div><div style="margin-top:6px"><button id="__diagClose">Cerrar</button></div>`;
-    document.body.appendChild(p);
-    document.getElementById('__diagClose').onclick = ()=> p.remove();
-    updateDiagList();
-  }
-  function updateDiagList(){
-    const el = document.getElementById('__diagList');
-    if(!el) return;
-    el.innerHTML = window.__diagErrors.map(x=>`<div style="margin-top:6px">${x}</div>`).join('');
-  }
-  window.__showDiag = showDiagPanel;
-})();
+/* ===================================================
+   DATOS
+   =================================================== */
+const VERSES = [
+{ref:"Génesis 1:1",text:"En el principio creó Dios el cielo y la tierra."},
+{ref:"Josué 1:8",text:"El libro de esta ley nunca se apartará de tu boca: antes de día y de noche meditarás en él, para que guardes y hagas conforme a todo lo que en él está escrito: porque entonces harás prosperar tu camino, y todo te saldrá bien."},
+{ref:"Josué 1:9",text:"Mira que te mando que te esfuerces y seas valiente: no temas ni desmayes, porque el SEÑOR tu Dios es contigo en donde quiera que fueres."},
+{ref:"1 Crónicas 16:10",text:"Gloriaos en su santo nombre; alégrese el corazón de los que buscan al SEÑOR."},
+{ref:"1 Crónicas 28:20",text:"Dijo más David a Salomón su hijo: Anímate y esfuérzate, y ponlo por obra; no temas, ni desmayes, porque el SEÑOR Dios, mi Dios, será contigo: él no te dejará, ni te desamparará, hasta que acabes toda la obra para el servicio de la casa del SEÑOR."},
+{ref:"2 Crónicas 15:7",text:"Esforzaos pues vosotros, y no desfallezcan vuestras manos; que salario hay para vuestra obra."},
+{ref:"Esdras 7:10",text:"Porque Esdras había preparado su corazón para inquirir la ley del SEÑOR, y para hacer y enseñar a Israel mandamientos y juicios."},
+{ref:"Nehemías 4:18",text:"Porque los que edificaban, cada uno tenía su espada ceñida a sus lomos, y así edificaban: y el que tocaba la trompeta estaba junto a mí."},
+{ref:"Salmo 27:1",text:"El SEÑOR es mi luz y mi salvación: ¿de quién temeré? el SEÑOR es la fortaleza de mi vida: ¿de quién he de atemorizarme?"},
+{ref:"Salmo 37:4",text:"Pon asimismo tu delicia en el SEÑOR, y él te dará las peticiones de tu corazón."},
+{ref:"Salmo 37:5",text:"Encomienda al SEÑOR tu camino, y espera en él; y él hará."},
+{ref:"Salmo 112:7",text:"De mala fama no tendrá temor: su corazón está apercibido, confiado en el SEÑOR."},
+{ref:"Salmo 119:9",text:"¿Con qué limpiará el joven su camino? Con guardar tu palabra."},
+{ref:"Salmo 119:111",text:"Por heredad he tomado tus testimonios para siempre; porque son el gozo de mi corazón."},
+{ref:"Salmo 126:6",text:"El que lleva la preciosa simiente, andando y llorando, volverá sin duda con regocijo, trayendo sus gavillas."},
+{ref:"Salmo 133:1",text:"¡MIRAD cuán bueno y cuán agradable es habitar los hermanos juntos en unidad!"},
+{ref:"Salmo 138:2",text:"Adoraré hacia tu santo templo, y alabaré tu nombre por tu misericordia y tu verdad: porque has magnificado tu palabra sobre todo tu nombre."},
+{ref:"Proverbios 4:18",text:"Mas la senda de los justos es como la luz de la aurora, que va en aumento hasta el día perfecto."},
+{ref:"Proverbios 10:5",text:"El que recoge en el verano es hijo sabio: pero el que duerme en el tiempo de la siega es hijo que avergüenza."},
+{ref:"Proverbios 20:11",text:"Aun el muchacho es conocido por sus hechos, si su obra fuere limpia y recta."},
+{ref:"Proverbios 27:17",text:"Hierro con hierro se aguza; y el hombre aguza el rostro de su amigo."},
+{ref:"Eclesiastés 11:8",text:"Mas si el hombre viviere muchos años, y en todos ellos hubiere gozado alegría; si después trajere a la memoria los días de las tinieblas, que serán muchos, todo lo que le habrá pasado, dirá haber sido vanidad."},
+{ref:"Jeremías 15:16",text:"Halláronse tus palabras, y yo las comí; y tu palabra me fue por gozo y por alegría de mi corazón: porque tu nombre se invocó sobre mí, oh SEÑOR Dios de los ejércitos."},
+{ref:"Nahum 2:1",text:"Subió destruidor contra ti: guarda la fortaleza, mira el camino, fortifica los lomos, fortalece mucho la fuerza."},
+{ref:"Habacuc 3:18",text:"Con todo, yo me alegraré en el SEÑOR, y me gozaré en el Dios de mi salvación."},
+{ref:"Mateo 13:25",text:"Pero mientras los hombres dormían, vino su enemigo, y sembró cizaña entre el trigo, y se fue."},
+{ref:"Mateo 24:42",text:"Velad pues, porque no sabéis a que hora ha de venir vuestro Señor."},
+{ref:"Mateo 24:43",text:"Pero sabed esto, que si el padre de la familia supiese a cuál vela el ladrón había de venir, velaría, y no dejaría minar su casa."},
+{ref:"Mateo 26:43",text:"Y vino, y los halló otra vez durmiendo; porque los ojos de ellos eran agravados."},
+{ref:"Marcos 13:33",text:"Mirad, velad, y orad; porque no sabéis cuando el tiempo es."},
+{ref:"Lucas 2:10-11",text:"Mas el ángel les dijo: No temáis, porque he aquí os traigo nuevas de gran gozo, que será a todo el pueblo: Que os es nacido hoy en la ciudad de David, el Salvador, que es Cristo el Señor."},
+{ref:"Lucas 14:28",text:"Porque ¿cuál de vosotros, queriendo edificar una torre, no cuenta primero sentado y haga cuenta de los gastos, si tiene lo que ha menester para acabarla?"},
+{ref:"Lucas 21:34",text:"Y mirad por vosotros, que vuestros corazones no sean cargados de glotonería y embriaguez, y de los afanes de esta vida, y venga de repente sobre vosotros aquel día."},
+{ref:"Juan 5:39",text:"Escudriñad las escrituras; porque a vosotros os parece, que en ellas tenéis la vida eterna; y ellas son las que dan testimonio de mí;"},
+{ref:"Juan 6:63",text:"El espíritu es el que da vida: la carne de nada aprovecha: las palabras que yo os hablo, espíritu son, y vida son."},
+{ref:"Juan 11:11",text:"Él dijo estas cosas; y después de esto les dice: Lázaro nuestro amigo duerme; mas voy a despertarle del sueño."},
+{ref:"Hechos 20:24",text:"Mas de ninguna de estas cosas hago caso, ni tengo mi vida preciosa a mí mismo, con tal que acabe mi carrera con gozo, y el ministerio que recibí del Señor Jesús, para dar testimonio del evangelio de la gracia de Dios."},
+{ref:"Romanos 1:16",text:"Porque no me avergüenzo del evangelio de Cristo; porque es el poder de Dios para salvación a todo aquel que cree: al judío primeramente, y también al griego."},
+{ref:"Romanos 3:23",text:"Por cuanto todos pecaron, y están destituidos de la gloria de Dios."},
+{ref:"Romanos 5:8",text:"Mas Dios encarece su amor para con nosotros, en que siendo aún pecadores, Cristo murió por nosotros."},
+{ref:"Romanos 6:23",text:"Porque la paga del pecado es la muerte; mas el don de Dios es vida eterna en Cristo Jesús el Señor nuestro."},
+{ref:"Romanos 8:17",text:"Y si hijos, también herederos: herederos ciertamente de Dios, y coherederos con Cristo: si es que padecemos juntamente con él, para que juntamente con él seamos también glorificados."},
+{ref:"Romanos 8:38-39",text:"Por que estoy persuadido que ni la muerte, ni la vida, ni ángeles, ni principados, ni poderes, ni lo presente, ni lo por venir, Ni lo alto, ni lo bajo, ni ninguna otra criatura nos podrá apartar del amor de Dios, que es en Cristo Jesús, nuestro Señor."},
+{ref:"Romanos 10:9-10",text:"Que si confesares con tu boca al Señor Jesús; y creyeres en tu corazón que Dios le resucitó de entre los muertos, serás salvo. Porque con el corazón se cree para Justicia; y con la boca se hace confesión para salvación."},
+{ref:"Romanos 12:15",text:"Regocijaos con los que se regocijan; y llorad con los que lloran."},
+{ref:"Romanos 13:11",text:"Y esto, conociendo el tiempo, que es ya hora de despertarnos del sueño; porque ahora nos está más cerca nuestra salvación, que cuando creímos."},
+{ref:"1 Corintios 2:5",text:"Para que vuestra fe no sea en la sabiduría de hombres, mas en el poder de Dios."},
+{ref:"1 Corintios 3:10",text:"Conforme a la gracia de Dios que me ha sido dada, yo como sabio maestro de obra, puse el fundamento; mas otro edifica sobre él: pero cada uno vea como edifica sobre él."},
+{ref:"1 Corintios 3:14",text:"Si permaneciere la obra de alguno que sobreedificó, recibirá galardón."},
+{ref:"1 Corintios 12:13",text:"Porque por un Espíritu somos todos bautizados en un cuerpo, ora judíos o gentiles, ora siervos o libres; y a todos se nos ha hecho beber en un Espíritu."},
+{ref:"1 Corintios 13:13",text:"Y ahora permanece la fe, la esperanza, y la caridad, estas tres; pero la mayor de ellas es la caridad."},
+{ref:"1 Corintios 14:40",text:"Háganse todas las cosas decentemente, y con orden."},
+{ref:"1 Corintios 15:3-4",text:"Porque primeramente os he enseñado lo que asimismo yo recibí, que Cristo murió por nuestros pecados, según las Escrituras. Y que fue sepultado, y que resucitó al tercer día, según las Escrituras;"},
+{ref:"1 Corintios 15:34",text:"Despertad a la justicia, y no pequéis; porque algunos no tienen el conocimiento de Dios, para vergüenza vuestra lo digo."},
+{ref:"1 Corintios 15:58",text:"Así que, hermanos míos amados estad firmes y constantes, abundando siempre en la obra del Señor, sabiendo que vuestro trabajo en el Señor no es vano."},
+{ref:"1 Corintios 16:13",text:"Velad, estad firmes en la fe: portaos varonilmente, sed fuertes."},
+{ref:"2 Corintios 4:3-4",text:"Que si nuestro evangelio es encubierto, para los que se pierden es encubierto: En los cuales el dios de este mundo ha cegado la mente de los incrédulos, para que no les resplandezca la luz del evangelio glorioso de Cristo, el cual es la imagen de Dios."},
+{ref:"2 Corintios 4:18",text:"No mirando nosotros a las cosas que se ven, sino a las que no se ven; porque las cosas que se ven son temporales; mas las que no se ven son eternas."},
+{ref:"2 Corintios 5:10",text:"Porque es menester que todos nosotros comparezcamos delante del tribunal de Cristo; para que cada uno reciba las cosas hechas en su cuerpo, según lo que hubiere hecho, sea bueno, o sea malo."},
+{ref:"2 Corintios 5:18",text:"Y todas las cosas son de Dios, el cual nos ha reconciliado consigo mismo por Cristo Jesús, y nos ha dado el ministerio de la reconciliación."},
+{ref:"2 Corintios 5:21",text:"Porque a él que no conoció pecado, lo hizo pecado por nosotros, para que nosotros fuésemos hechos justicia de Dios en él."},
+{ref:"2 Corintios 7:1",text:"Teniendo pues nosotros estas promesas, amados míos, pues que tenemos tales promesas, limpiémonos de toda inmundicia de la carne y del espíritu, perfeccionando la santidad en el temor de Dios."},
+{ref:"2 Corintios 9:7",text:"Cada uno como propuso en su corazón, así dé, no con tristeza, o por necesidad; porque Dios ama el dador alegre."},
+{ref:"2 Corintios 10:4-5",text:"Porque las armas de nuestra milicia no son carnales, sino poderosas por Dios para derribar fortalezas; Derribando imaginaciones, y toda cosa alta que se levanta contra el conocimiento de Dios; y poniendo bajo cautiverio todo pensamiento a la obediencia de Cristo,"},
+{ref:"2 Corintios 13:14",text:"La gracia del Señor Jesús Cristo, y el amor de Dios, y la comunión del Espíritu Santo sea con vosotros todos. Amén"},
+{ref:"Gálatas 2:20",text:"Soy crucificado con Cristo; mas vivo, no ya yo, sino que Cristo vive en mí; y la vida que ahora vivo en la carne, la vivo por la fe del Hijo de Dios, el cual me amó, y se entrego a sí mismo por mí."},
+{ref:"Gálatas 2:21",text:"No frustro la gracia de Dios; porque si por la ley proviene la justicia, entonces Cristo murió en vano."},
+{ref:"Gálatas 5:16",text:"Digo, pues: Andad en el Espíritu; y no cumpliréis las concupiscencias de la carne."},
+{ref:"Gálatas 6:2",text:"Llevad los unos las cargas de los otros; y cumplid así la ley de Cristo."},
+{ref:"Efesios 2:8-9",text:"Porque por gracia sois salvos por la fe, y esto no de vosotros, es el don de Dios: No por obras, para que nadie se gloríe."},
+{ref:"Efesios 2:20-21",text:"Edificados sobre el fundamento de los apóstoles y profetas, Cristo Jesús mismo siendo la principal piedra del ángulo: En el cual todo el edificio, bien trabado consigo mismo, crece para ser templo santo en el Señor:"},
+{ref:"Efesios 4:3",text:"Solícitos a guardar la unidad del Espíritu en el vínculo de la paz."},
+{ref:"Efesios 4:12",text:"Para el perfeccionamiento de los santos para la obra del ministerio, para la edificación del cuerpo de Cristo:"},
+{ref:"Efesios 5:14",text:"Por lo cual dice: Despiértate, tú que duermes, y levántate de entre los muertos, y te alumbrará Cristo."},
+{ref:"Efesios 6:1",text:"Hijos, obedeced a vuestros padres en el Señor; porque esto es justo."},
+{ref:"Efesios 6:10",text:"En fin, hermanos míos, sed fuertes en el Señor, y en la potencia de su fortaleza."},
+{ref:"Efesios 6:13",text:"Por tanto tomad toda la armadura de Dios, para que podáis resistir en el día malo, habiéndolo hecho todo, estar firmes."},
+{ref:"Filipenses 1:10",text:"Para que aprobéis lo mejor, a fin de que seáis sinceros y sin ofensa hasta el día de Cristo,"},
+{ref:"Filipenses 1:21",text:"Porque para mí el vivir es Cristo, y el morir es ganancia."},
+{ref:"Filipenses 1:27",text:"Solamente que vuestro comportamiento sea cual conviene al evangelio de Cristo; para que, o sea que venga y os vea, o que esté ausente, oiga de vuestras cosas, que estáis firmes en un mismo espíritu, con una misma mente combatiendo juntamente por la fe del evangelio;"},
+{ref:"Filipenses 3:10",text:"Para conocerle a él, y el poder de su resurrección, y la comunión de sus padecimientos, siendo hecho conforme a su muerte:"},
+{ref:"Filipenses 3:14",text:"Prosigo hacia el blanco, por el premio de la alta vocación de Dios en Cristo Jesús."},
+{ref:"Filipenses 4:1",text:"Por lo cual, hermanos míos, amados y muy deseados, mi gozo y mi corona, estad así firmes en el Señor, amados míos."},
+{ref:"Filipenses 4:4",text:"Regocijaos en el Señor siempre: otra vez digo, que os regocijéis."},
+{ref:"Filipenses 4:6",text:"Por nada estéis acongojados; sino en todas cosas, por oración y suplicación, con acción de gracias, sean conocidas vuestras peticiones delante de Dios."},
+{ref:"Colosenses 2:6",text:"Por tanto, como habéis recibido a Cristo Jesús el Señor, así andad en él;"},
+{ref:"Colosenses 3:2",text:"Poned vuestro afecto en las cosas de arriba, no en las de la tierra."},
+{ref:"Colosenses 3:16",text:"La palabra de Cristo more en vosotros ricamente en toda sabiduría; enseñándoos, y amonestándoos los unos a los otros con salmos, e himnos, y cánticos espirituales, cantando con gracia en vuestros corazones al Señor."},
+{ref:"Colosenses 3:23",text:"Y todo lo que hiciereis, hacedlo de corazón, como al Señor, y no a los hombres: Sabiendo que del Señor recibiréis el galardón de la herencia; porque al Señor Cristo servís."},
+{ref:"Colosenses 3:23-24",text:"Y todo lo que hiciereis, hacedlo de corazón, como al Señor, y no a los hombres: Sabiendo que del Señor recibiréis el galardón de la herencia; porque al Señor Cristo servís."},
+{ref:"1 Tesalonicenses 5:6",text:"Por tanto, no durmamos como los demás; antes velemos y seamos sobrios."},
+{ref:"1 Tesalonicenses 5:23",text:"Y el Dios de paz os santifique enteramente; y que todo vuestro espíritu, y alma y cuerpo sean preservados irreprensibles para la venida de nuestro Señor Jesús Cristo."},
+{ref:"2 Tesalonicenses 2:15",text:"Así que, hermanos, estad firmes, y retened la doctrina que habéis sido enseñados, sea por palabra, o por carta nuestra."},
+{ref:"1 Timoteo 2:5",text:"Porque hay un Dios, y un mediador entre Dios y los hombres, el hombre Cristo Jesús;"},
+{ref:"1 Timoteo 3:16",text:"Y sin controversia, grande es el misterio de la piedad: Dios fue manifestado en la carne, justificado en el Espíritu, visto de los ángeles, predicado a los gentiles, creído en el mundo, recibido arriba en gloria."},
+{ref:"1 Timoteo 4:7",text:"Mas desecha las fábulas profanas y de viejas, y ejercítate para la piedad."},
+{ref:"1 Timoteo 4:12",text:"Ninguno tenga en poco tu juventud; mas sé ejemplo de los creyentes en palabra, en conducta, en caridad, en espíritu, en fe, en pureza."},
+{ref:"1 Timoteo 4:14",text:"No descuides el don que está en ti, que te fue dado por profecía, con la imposición de las manos de los ancianos."},
+{ref:"2 Timoteo 1:7",text:"Porque no nos ha dado Dios el espíritu de temor, sino de poder, y de amor, y de templanza."},
+{ref:"2 Timoteo 2:1",text:"Tú, pues, hijo mío, esfuérzate en la gracia que es en Cristo Jesús."},
+{ref:"2 Timoteo 2:2",text:"Y lo que has oído de mí entre muchos testigos, esto encarga a hombres fieles que serán idóneos para enseñar también a otros."},
+{ref:"2 Timoteo 2:15",text:"Estudia para presentarte aprobado a Dios, un obrero que no tiene que avergonzarse, que divide correctamente la palabra de verdad."},
+{ref:"2 Timoteo 3:12",text:"Y aun todos los que vivieren piadosamente en Cristo Jesús, padecerán persecución."},
+{ref:"2 Timoteo 3:14-15",text:"Así que persiste tú en lo que has aprendido, y has sido persuadido, sabiendo de quien has aprendido; Y que desde la niñez has sabido las sagradas Escrituras, las cuales te pueden hacer sabio para la salvación por la fe que es en Cristo Jesús"},
+{ref:"2 Timoteo 3:16-17",text:"Toda escritura es dada por inspiración de Dios, y es útil para doctrina, para redargüir, para corregir, para instrucción en justicia, Para que el hombre de Dios sea perfecto, enteramente aparejado para toda buena obra."},
+{ref:"2 Timoteo 4:2",text:"Predica la palabra; que instes a tiempo y fuera de tiempo; redarguye, reprende, exhorta con toda paciencia y doctrina."},
+{ref:"2 Timoteo 4:5",text:"Tú por tanto vela en todo, sufre aflicciones, haz obra de evangelista, cumple bien tu ministerio:"},
+{ref:"Tito 2:1",text:"Pero tú habla las cosas que convienen a la sana doctrina:"},
+{ref:"Hebreos 4:12",text:"Porque la palabra de Dios es viva y poderosa, y más aguda que toda espada de dos filos; que penetra hasta partir el alma y el espíritu, y las coyunturas y tuétanos, y discierne los pensamientos y las intenciones del corazón."},
+{ref:"Hebreos 11:33",text:"Los cuales por fe sojuzgaron reinos, obraron justicia, alcanzaron promesas, taparon las bocas de leones,"},
+{ref:"1 Pedro 2:20",text:"Porque ¿qué gloria es, si pecando vosotros sois abofeteados, y lo sufrís? pero si haciendo bien, sois afligidos, y lo sufrís, esto es cierto agradable delante de Dios."}
+];
 
-/* =========================
-   Utilidades: normalización y comparación de referencias
-   ========================= */
-function normalizeRef(r){
-  if(!r) return '';
-  let s = r.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  s = s.replace(/[\u2013\u2014]/g,'-');
-  s = s.replace(/[()\.,\/\\\u2018\u2019\u201C\u201D]/g,'');
-  s = s.replace(/\s+/g,' ').trim().toLowerCase();
-  // normalizar espacios y guiones en rangos: ej "1 corintios 13:1-3" -> "1 corintios 13:1-3"
-  return s;
-}
-// comparar referencias: acepta equivalencias como "juan 3:16" == "Juan 3:16"
-function compareRefs(expectedRef, userInput){
-  const ne = normalizeRef(expectedRef);
-  const nu = normalizeRef(userInput);
-  if(!ne || !nu) return false;
-  // permitir que el usuario escriba "juan 3 16" o "juan 3:16" o "juan 3:16-17"
-  // comparar tokens flexiblemente
-  return ne === nu;
-}
+const CAT_LISTS={
+  discipulado:["Romanos 10:9-10","Romanos 8:38-39","2 Timoteo 3:16-17","Filipenses 4:6","2 Corintios 13:14","Gálatas 5:16","Efesios 4:12","1 Corintios 12:13","2 Corintios 9:7","2 Corintios 5:18","2 Corintios 5:10","Colosenses 3:23-24"],
+  visiones:["Colosenses 2:6","Efesios 2:20-21","Nehemías 4:18","Efesios 4:3","1 Corintios 15:58","2 Tesalonicenses 2:15","2 Timoteo 2:15","Filipenses 4:4","1 Tesalonicenses 5:6","Filipenses 1:10","1 Timoteo 4:7","Hebreos 11:33","Gálatas 6:2","Salmo 37:4","Lucas 14:28","1 Crónicas 28:20","Colosenses 3:23-24","1 Tesalonicenses 5:23","Proverbios 27:17","1 Corintios 14:40","2 Corintios 7:1","Colosenses 3:2"]
+};
 
-/* =========================
-   Normalización de texto (versículos)
-   ========================= */
-function normalizeText(s){
-  if(!s) return '';
-  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  s = s.replace(/[^A-Za-z0-9\u00C0-\u017F\s]/g, ' ');
-  s = s.toLowerCase().replace(/\s+/g,' ').trim();
-  return s;
+const MONTHLY_VERSES={
+  enero:  ["Colosenses 3:2","2 Corintios 4:18","2 Timoteo 2:15","Efesios 4:12","Romanos 8:17","2 Crónicas 15:7","Hechos 20:24","Filipenses 3:14","Filipenses 1:10"],
+  febrero:["Efesios 4:3","2 Timoteo 4:5","2 Timoteo 2:2","Lucas 14:28","Salmo 126:6","Esdras 7:10","Salmo 37:5","Filipenses 4:1","Nehemías 4:18"],
+  marzo:  ["Salmo 119:9","Romanos 10:9-10","Filipenses 4:4","Mateo 24:43","Efesios 2:8-9","Filipenses 3:10","Hebreos 4:12","Gálatas 5:16","1 Corintios 16:13"],
+  abril:  ["Proverbios 4:18","Josué 1:8","Gálatas 6:2","Filipenses 4:6","Juan 5:39","Hebreos 11:33","Colosenses 3:23-24","2 Corintios 9:7","Marcos 13:33"],
+  mayo:   ["Gálatas 2:20","1 Timoteo 4:7","Romanos 3:23","Romanos 1:16","1 Timoteo 3:16","Mateo 24:42","2 Timoteo 3:16-17","Juan 6:63","Proverbios 10:5"],
+  junio:  ["Juan 11:11","Salmo 119:111","2 Tesalonicenses 2:15","2 Timoteo 3:12","Lucas 2:10-11","Jeremías 15:16","Filipenses 1:21","1 Tesalonicenses 5:6","1 Corintios 12:13"]
+};
+
+const QUIZ_DATA = {
+  soy:[
+    {p:"Con la quijada de un asno di muerte a mil hombres.",r:"Samsón"},
+    {p:"Mi abuela me quería matar.",r:"Joás"},
+    {p:"Una canasta se convirtió en una pequeña barca para mi.",r:"Moisés"},
+    {p:"Escondí 200 siclos de plata, 50 siclos de oro y un manto babilónico.",r:"Acán"},
+    {p:"No había hombre en Israel tan alabado por su hermosura como yo.",r:"Absalón"},
+    {p:"Contraté a un profeta para maldecir a Israel.",r:"Balac"},
+    {p:"Mi esposa se llamaba Abigail y me salvó de David.",r:"Nabal"},
+    {p:"Se me prohibió llorar la muerte de dos de mis hijos.",r:"Aarón"},
+    {p:"Rasgué mis vestidos al escuchar la lectura de la ley.",r:"Josías"},
+    {p:"Fui arrojada de una ventana y los perros comieron mi carne.",r:"Jezabel"},
+    {p:"Una flecha lanzada a la ventura me hirió entre las junturas de mi armadura.",r:"Acab"},
+    {p:"Mi viña me costó la vida.",r:"Nabot"},
+    {p:"Yo era conocido por la manera en que conducía.",r:"Jehú"},
+    {p:"Propuse en mi corazón no contaminarme con la comida del rey.",r:"Daniel"},
+    {p:"Armado de una lanza maté a 800 hombres.",r:"Adino"},
+    {p:"Entré a una cisterna un día de nieve y maté a un león.",r:"Benaía"},
+    {p:"Estuve en batalla hasta que mi mano quedó pegada a mi espada.",r:"Eleazar"},
+    {p:"Mis hijos se llamaban Joab, Abisai y Asael.",r:"Sarvia"},
+    {p:"Me caí de una ventana y el profeta Elías dijo que moriría.",r:"Ocozías"},
+    {p:"Pasé el vado de Jaboc de noche con mis mujeres y mis hijos.",r:"Jacob"},
+    {p:"Eché a los tres hijos de Anac de su tierra.",r:"Caleb"},
+    {p:"De los hombros arriba era más alto que cualquiera del pueblo.",r:"Saúl"},
+    {p:"Por siete tiempos tuve corazón de bestia.",r:"Nabucodonosor"},
+    {p:"Para mostrar mi riqueza hice una fiesta de 180 días.",r:"Asuero"},
+    {p:"Fui castigado con lepra hasta el día de mi muerte.",r:"Uzías"},
+    {p:"Ciego y encadenado fui llevado en cautiverio.",r:"Sedequías"},
+    {p:"Yo era zurdo y de la tribu de Benjamín.",r:"Aod"},
+    {p:"Morí a los 98 años y juzgué a Israel por 40 años.",r:"Elí"},
+    {p:"Un ángel me visitó y libré a Israel con 300 hombres.",r:"Gedeón"},
+    {p:"Cumplí una promesa que era en contra de la ley.",r:"Jefté"},
+    {p:"Hice que el sol se detuviera por el poder de Dios.",r:"Josué"},
+    {p:"Dios mismo me sepultó.",r:"Moisés"},
+    {p:"Por 20 años juzgué, pero con mi muerte más enemigos maté.",r:"Samsón"},
+    {p:"Con pandero y danza dirigía a las mujeres en alabanza.",r:"Miriam"},
+    {p:"Con mi mejor amigo caminé cada día y Él me llevó.",r:"Enoc"},
+    {p:"Tres veces traté de maldecir al pueblo de Israel.",r:"Balaam"},
+    {p:"Mi vestido era de pelo de camello, comía langostas y miel.",r:"Juan el Bautista"},
+    {p:"Hice descender fuego del cielo.",r:"Elías"},
+    {p:"Recibí el doble de la porción del espíritu de mi maestro.",r:"Eliseo"},
+    {p:"Profeticé que una espada traspasaría el corazón de María.",r:"Simeón"},
+    {p:"Destruí en el arroyo de Cisón a los profetas de Baal.",r:"Elías"}
+  ],
+  dijo:[
+    {p:"He aquí yo habito en casa de cedro, y el arca del pacto de Jehová debajo de cortinas.",r:"David"},
+    {p:"Edad tiene preguntadle a él; él hablará por sí mismo.",r:"Padres del ciego"},
+    {p:"¿De quién dice el profeta esto; de sí mismo o de algún otro?",r:"El Etiope"},
+    {p:"Así atarán los judíos en Jerusalén al varón de quien es este cinto.",r:"Profeta Agabo"},
+    {p:"No, por cierto, sino vengan ellos mismos a sacarnos.",r:"Pablo"},
+    {p:"Si habéis juzgado que yo sea fiel al Señor, entrad en mi casa...",r:"Lidia"},
+    {p:"Yo soy joven, y vosotros ancianos; Por tanto, he tenido miedo...",r:"Eliú"},
+    {p:"¿Qué hacen estos débiles judíos? ¿Se les permitirá volver...?",r:"Sanbalat"},
+    {p:"¿Aún retienes tu integridad? Maldice a Dios, y muérete.",r:"Esposa de Job"},
+    {p:"Huyo de delante de Sarai mi señora.",r:"Agar"},
+    {p:"Llegarán los días del luto de mi padre, y yo mataré a mi hermano Jacob.",r:"Esaú"},
+    {p:"Yo sé que mi Redentor vive, Y al fin se levantará sobre el polvo.",r:"Job"},
+    {p:"He aquí, Señor, la mitad de mis bienes doy a los pobres...",r:"Zaqueo"},
+    {p:"Por poco me persuades a ser cristiano.",r:"Agripa"},
+    {p:"¿Me has hallado, enemigo mío?",r:"Acab"},
+    {p:"Estás loco, Pablo; las muchas letras te vuelven loco.",r:"Festo"},
+    {p:"No sé. ¿Soy yo acaso guarda de mi hermano?",r:"Caín"},
+    {p:"¿Acaso se ha acortado la mano de Jehová? Ahora verás si se cumple...",r:"Señor"},
+    {p:"¿Por qué nos has turbado? Túrbete Jehová en este día.",r:"Josué"},
+    {p:"Volveos, hijas mías; ¿para qué habéis de ir conmigo?",r:"Noemí"},
+    {p:"¿Hasta cuándo estarás ebria? Digiere tu vino.",r:"Elí"},
+    {p:"¡Cuán honrado ha quedado hoy el rey de Israel, descubriéndose hoy...!",r:"Mical"},
+    {p:"Pide lo que quieras que haga por ti, antes que yo sea quitado de ti.",r:"Elías"},
+    {p:"¿No son diez los que fueron limpiados? Y los nueve, ¿Dónde están?",r:"Jesús"},
+    {p:"Señor, hiede ya, porque es de cuatro días.",r:"Marta"},
+    {p:"¿Cómo puede un hombre nacer siendo viejo?",r:"Nicodemo"},
+    {p:"Tomadme y echadme al mar, y el mar se os aquietará.",r:"Jonás"},
+    {p:"Si tocare solamente su manto, seré salva.",r:"Mujer de Flujo"},
+    {p:"He aquí, no sé hablar, porque soy niño.",r:"Jeremías"},
+    {p:"¿Hasta cuándo claudicaréis vosotros entre dos pensamientos?",r:"Elías"},
+    {p:"Inocente soy yo de la sangre de este justo; allá vosotros.",r:"Pilato"},
+    {p:"He aquí, nosotros hemos dejado nuestras posesiones y te hemos seguido.",r:"Pedro"},
+    {p:"Muera yo con los filisteos.",r:"Samsón"},
+    {p:"No te hagas ningún mal, pues todos estamos aquí.",r:"Pablo"},
+    {p:"Anímate y esfuérzate y manos a la obra.",r:"David"},
+    {p:"...y si perezco, que perezca.",r:"Ester"},
+    {p:"Sol, detente en Gabaón; Y tú, Luna, en el valle de Ajalón.",r:"Josué"},
+    {p:"También recibimos el bien de Dios, ¿y el mal no recibiremos?",r:"Job"},
+    {p:"Entonces respondí yo: Heme aquí, envíame a mí.",r:"Isaías"},
+    {p:"Tu pueblo será mi pueblo, y tu Dios mi Dios.",r:"Rut"},
+    {p:"María, no temas, porque has hallado gracia cerca de Dios.",r:"Angel Gabriel"},
+    {p:"He aquí la sierva del Señor; hágase á mí conforme á tu palabra.",r:"María"},
+    {p:"YO SOY el Alfa y la Omega, principio y fin, el primero y el postrero.",r:"Jesús"},
+    {p:"Mi padre agravó vuestro yugo, pero yo añadiré a vuestro yugo.",r:"Roboam"}
+  ],
+  generales:[
+    {p:"¿Cuántos tiempo tomó Salomón para construir el templo de Jerusalén?",r:"7 años"},
+    {p:"¿Cuáles son los nombres de las esposas de Elcana?",r:"Ana y Penina"},
+    {p:"¿Cuántos hermanos tenía David?",r:"7 hermanos"},
+    {p:"¿Cuántos hijos tenía Isaí, padre de David?",r:"8 hijos"},
+    {p:"¿Cuántos años tenía Joás cuando comenzó a reinar en Jerusalén?",r:"7 años"},
+    {p:"¿Durante cuántos años reinó Joás en Jerusalén?",r:"40 años"},
+    {p:"¿Cuántos años tenía Josías cuanto comenzó a reinar?",r:"8 años"},
+    {p:"¿A quién le sacaron los ojos y lo llevaron cautivo a Babilonia?",r:"Rey Sedequías"},
+    {p:"¿Cuántas veces se sumergió Naamán en el Jordán?",r:"7 veces"},
+    {p:"¿Qué edad tenía David cuando comenzó a reinar en Jerusalén?",r:"30 años"},
+    {p:"¿Durante cuántos años reinó David?",r:"40 años"},
+    {p:"¿Cómo se llamaba la mamá de Timoteo?",r:"Eunice"},
+    {p:"¿Cómo se llamaba la abuela de Timoteo?",r:"Loida"},
+    {p:"¿Qué otro nombre tenía Daniel?",r:"Beltsasar"},
+    {p:"¿Cuál río es conocido como 'El Gran Río ó Río Grande'?",r:"Río Éufrates"},
+    {p:"¿Qué ciudad es conocida como la ciudad de Las Palmeras?",r:"Jericó"},
+    {p:"¿Cuál es el nombre de la reina a quien Ester reemplazó?",r:"Vasti"},
+    {p:"¿Cuál es el nombre de la esposa de Amán?",r:"Zeres"},
+    {p:"¿Cuánto tiempo comieron los israelitas maná en el desierto?",r:"40 años"},
+    {p:"¿Quién fue el suegro de Moisés?",r:"Jetro"},
+    {p:"¿Por cuánto tiempo fue escondido Moisés cuando nació?",r:"3 meses"},
+    {p:"¿Cómo se llamaba la esposa de Moisés?",r:"Séfora"},
+    {p:"¿Quién hizo un becerro de oro?",r:"Aarón"},
+    {p:"¿Quién destruyo el becerro de oro que hizo Aarón?",r:"Moisés"},
+    {p:"¿Cómo se llamaba el rey de Sodoma?",r:"Bera"},
+    {p:"¿Cómo se llamaba el rey de Gomorra?",r:"Birsa"},
+    {p:"¿Cuántos años tenía Abram cuando nació Ismael?",r:"86 años"},
+    {p:"¿Cuántos años tenía Sara cuando nació Isaac?",r:"90 años"},
+    {p:"¿Cuántos años tenía Abraham cuando nació Isaac?",r:"100 años"},
+    {p:"¿Cuál fue el nombre de la segunda esposa que tuvo Abraham?",r:"Cetura"},
+    {p:"¿Cuántos años tenía Isaac cuando se casó con Rebeca?",r:"40 años"},
+    {p:"¿Cuál fue el nombre de la mamá de Jacob y Esaú?",r:"Rebeca"},
+    {p:"¿Cuáles dos hermanas se casaron con el mismo hombre?",r:"Raquel y Lea"},
+    {p:"¿Quién es la madre de todos los vivientes?",r:"Eva"},
+    {p:"¿Cuántos años tenía José cuando fue vendido por sus hermanos?",r:"17 años"},
+    {p:"¿Cómo se llamaban los hijos de José?",r:"Efraín y Manasés"},
+    {p:"¿Cuántos años tenía Enoc cuando le llevó Dios?",r:"365 años"},
+    {p:"¿Cuántos años vivió Adám?",r:"930 años"},
+    {p:"¿Cómo se llamaban los hijos de Noé?",r:"Sem, Cam y Jafet"},
+    {p:"¿Cuántos años tenía Noé cuando comenzó el diluvio?",r:"600 años"},
+    {p:"¿En qué lugar reposó el arca después del diluvio?",r:"Montes de Ararat"},
+    {p:"¿Cuántos años vivió Noé?",r:"950 años"},
+    {p:"¿Quién fue sucesor de Judas en su oficio de apóstol?",r:"Matías"},
+    {p:"¿Por qué causa murieron Ananías y Safira?",r:"Por mentir"},
+    {p:"¿Cuál era el otro nombre de Dorcas?",r:"Tabita"},
+    {p:"¿Cómo se llamaban los tres amigos de Job?",r:"Elifaz, Bildad y Zofar"},
+    {p:"¿Cuántos espías envió Josué a Jericó?",r:"2 espías"},
+    {p:"¿En cuál ciudad vivía Rahab?",r:"Jericó"},
+    {p:"¿Qué otro nombre tenía Tomás?",r:"Dídimo"},
+    {p:"¿Quién pidió el cuerpo de Jesús para sepultarlo?",r:"José de Arimatea"},
+    {p:"¿A quién le dijo Jesús, 'No seas incrédulo'?",r:"Tomás"},
+    {p:"¿Cuál es el nombre de la hija de Caleb?",r:"Acsa"},
+    {p:"¿Cuál era la profetisa que gobernaba debajo de una palmera?",r:"Débora"},
+    {p:"¿Cómo se llamaba la mamá de Juan el Bautista?",r:"Elisabet"},
+    {p:"¿Cómo se llamaba el papá de Juan el Bautista?",r:"Zacarías"},
+    {p:"¿En qué lugar fue bautizado Jesús?",r:"En el río Jordán"},
+    {p:"¿Qué enfermedad tenía Bartimeo?",r:"Era ciego"},
+    {p:"¿Quiénes aparecieron con Jesús en el monte de la transfiguración?",r:"Elías y Moisés"},
+    {p:"¿Quién bautizó a Jesús?",r:"Juan el bautista"},
+    {p:"¿Cuántos espías envió Moisés a reconocer Canaán?",r:"12 espías"},
+    {p:"¿En qué lugar murió Aarón?",r:"Monte de Hor"},
+    {p:"¿Cómo se llamaron los padres de Moisés?",r:"Amram y Jocabed"},
+    {p:"¿Cómo se llamaban las nueras de Noemí?",r:"Orfa y Rut"},
+    {p:"¿Cómo se llamaba el dueño del campo donde Rut comenzó a recoger espigas?",r:"Booz"},
+    {p:"¿Cómo se llamaba el papá de David?",r:"Isaí"},
+    {p:"¿Cómo se llamaba el nieto de Obed?",r:"David"},
+    {p:"¿Cuál es el nombre de la esposa de Aquila?",r:"Priscila"},
+    {p:"¿Cuál es el nombre del papá de Samsón?",r:"Manoa"},
+    {p:"¿Quién fue la bisabuela de David?",r:"Rut"},
+    {p:"¿Cómo se llamaba el esposo de Noemí?",r:"Elimelec"},
+    {p:"¿Cuál es el nombre de la mujer que mató a Sísara capitán de ejercito de Jabín?",r:"Jael"},
+    {p:"¿Cómo se llamaban los dos hijos de Noemí?",r:"Mahlón y Quelión"},
+    {p:"¿De qué nacionalidad era Rut?",r:"Moabita"},
+    {p:"¿De qué nacionalidad era el papá de Timoteo?",r:"Griego"},
+    {p:"¿En qué ciudad fue apedreado Pablo?",r:"Listra"},
+    {p:"¿Cuál era el dios de los filisteos?",r:"Dagón"},
+    {p:"¿De qué forma murió Elí?",r:"Se desnucó"},
+    {p:"¿De qué nacionalidad era Eunice?",r:"Judía"},
+    {p:"¿Cómo se llamaba el padre de Samuel?",r:"Elcana"},
+    {p:"¿De qué tribu era Pablo?",r:"Benjamín"},
+    {p:"¿Cuál era el otro nombre de Ester?",r:"Hadasa"},
+    {p:"¿Qué padre e hijo fueron circuncidados el mismo día?",r:"Abraham e Ismael"},
+    {p:"¿Qué profeta amonestó al rey David por su pecado?",r:"Natán"},
+    {p:"¿Cómo se llamaba el padre de Lea?",r:"Labán"},
+    {p:"¿Cuál fue el nombre de los hijos de Elí?",r:"Ofni y Finees"},
+    {p:"¿Qué parentesco tenía Lot con Abraham?",r:"Era su sobrino"},
+    {p:"¿Cómo se llamaba el papá de Isaías?",r:"Amoz"},
+    {p:"¿Cuál era la profesión de Nehemías?",r:"Copero del Rey"},
+    {p:"¿Cómo se llamaba el papá de Abram?",r:"Taré"},
+    {p:"¿Quién adoptó a Ester?",r:"Mardoqueo"}
+  ]
+};
+
+const LIBROS=[
+  {o:1,n:"GÉNESIS",c:50},{o:2,n:"ÉXODO",c:40},{o:3,n:"LEVÍTICO",c:27},
+  {o:4,n:"NÚMEROS",c:36},{o:5,n:"DEUTERONOMIO",c:34},{o:6,n:"JOSUÉ",c:24},
+  {o:7,n:"JUECES",c:21},{o:8,n:"RUT",c:4},{o:9,n:"1 SAMUEL",c:31},
+  {o:10,n:"2 SAMUEL",c:24},{o:11,n:"1 REYES",c:22},{o:12,n:"2 REYES",c:25},
+  {o:13,n:"1 CRÓNICAS",c:29},{o:14,n:"2 CRÓNICAS",c:36},{o:15,n:"ESDRAS",c:10},
+  {o:16,n:"NEHEMÍAS",c:13},{o:17,n:"ESTER",c:10},{o:18,n:"JOB",c:42},
+  {o:19,n:"SALMOS",c:150},{o:20,n:"PROVERBIOS",c:31},{o:21,n:"ECLESIASTÉS",c:12},
+  {o:22,n:"CANTARES",c:8},{o:23,n:"ISAÍAS",c:66},{o:24,n:"JEREMÍAS",c:52},
+  {o:25,n:"LAMENTACIONES",c:5},{o:26,n:"EZEQUIEL",c:48},{o:27,n:"DANIEL",c:12},
+  {o:28,n:"OSEAS",c:14},{o:29,n:"JOEL",c:3},{o:30,n:"AMÓS",c:9},
+  {o:31,n:"ABDÍAS",c:1},{o:32,n:"JONÁS",c:4},{o:33,n:"MIQUEAS",c:7},
+  {o:34,n:"NAHUM",c:3},{o:35,n:"HABACUC",c:3},{o:36,n:"SOFONÍAS",c:3},
+  {o:37,n:"HAGEO",c:2},{o:38,n:"ZACARÍAS",c:14},{o:39,n:"MALAQUÍAS",c:4},
+  {o:40,n:"MATEO",c:28},{o:41,n:"MARCOS",c:16},{o:42,n:"LUCAS",c:24},
+  {o:43,n:"JUAN",c:21},{o:44,n:"HECHOS",c:28},{o:45,n:"ROMANOS",c:16},
+  {o:46,n:"1 CORINTIOS",c:16},{o:47,n:"2 CORINTIOS",c:13},{o:48,n:"GÁLATAS",c:6},
+  {o:49,n:"EFESIOS",c:6},{o:50,n:"FILIPENSES",c:4},{o:51,n:"COLOSENSES",c:4},
+  {o:52,n:"1 TESALONICENSES",c:5},{o:53,n:"2 TESALONICENSES",c:3},{o:54,n:"1 TIMOTEO",c:6},
+  {o:55,n:"2 TIMOTEO",c:4},{o:56,n:"TITO",c:3},{o:57,n:"FILEMÓN",c:1},
+  {o:58,n:"HEBREOS",c:13},{o:59,n:"SANTIAGO",c:5},{o:60,n:"1 PEDRO",c:5},
+  {o:61,n:"2 PEDRO",c:3},{o:62,n:"1 JUAN",c:5},{o:63,n:"2 JUAN",c:1},
+  {o:64,n:"3 JUAN",c:1},{o:65,n:"JUDAS",c:1},{o:66,n:"APOCALIPSIS",c:22}
+];
+
+const VISIONES=[
+  {y:2005,l:"Andando en la Gracia",c:"Colosenses 2:6"},
+  {y:2006,l:"Edificando la estructura",c:"Efesios 2:20-21"},
+  {y:2007,l:"Instruir, Batallar, Compartir",c:"Nehemías 4:18"},
+  {y:2008,l:"Únete más",c:"Efesios 4:3"},
+  {y:2009,l:"Creciendo firmes y constantes",c:"1 Corintios 15:58"},
+  {y:2010,l:"Retén la Doctrina",c:"2 Tesalonicenses 2:15"},
+  {y:2011,l:"Preséntate Aprobado a Dios",c:"2 Timoteo 2:15"},
+  {y:2012,l:"Regocíjate, que te Regocijes.",c:"Filipenses 4:4"},
+  {y:2013,l:"No Duermas",c:"1 Tesalonicenses 5:6"},
+  {y:2014,l:"Aprueba lo Mejor",c:"Filipenses 1:10"},
+  {y:2015,l:"Ejercítate para la piedad",c:"1 Timoteo 4:7"},
+  {y:2016,l:"Conquista El Reino",c:"Hebreos 11:33"},
+  {y:2017,l:"Sobrelleva las Cargas del Cuerpo",c:"Gálatas 6:2"},
+  {y:2018,l:"Deléitate en el Señor",c:"Salmos 37:4"},
+  {y:2019,l:"Calcula los recursos de la edificación",c:"Lucas 14:28"},
+  {y:2020,l:"Anímate y esfuérzate y manos a la obra",c:"1 Crónicas 28:20"},
+  {y:2021,l:"Hazlo todo como para el Señor",c:"Colosenses 3:23-24"},
+  {y:2022,l:"Guarda todo tu Ser",c:"1 Tesalonicenses 5:23"},
+  {y:2023,l:"Aguza tu relación en el cuerpo",c:"Proverbios 27:17"},
+  {y:2024,l:"Hazlo todo con orden",c:"1 Corintios 14:40"},
+  {y:2025,l:"Perfecciona la Santidad temiendo al Señor",c:"2 Corintios 7:1"},
+  {y:2026,l:"Prioriza tus afectos",c:"Colosenses 3:2"}
+];
+
+const DISCIPULADO=[
+  {o:1,n:"Salvación",c:"Romanos 10:9-10"},
+  {o:2,n:"Seguridad Eterna",c:"Romanos 8:38-39"},
+  {o:3,n:"La Palabra de Dios",c:"2 Timoteo 3:16-17"},
+  {o:4,n:"Oración",c:"Filipenses 4:6"},
+  {o:5,n:"Trinidad Santa",c:"2 Corintios 13:14"},
+  {o:6,n:"La batalla espiritual",c:"Gálatas 5:16"},
+  {o:7,n:"La iglesia local",c:"Efesios 4:12"},
+  {o:8,n:"El bautismo y la cena del Señor",c:"1 Corintios 12:13"},
+  {o:9,n:"Administrando los recursos",c:"2 Corintios 9:7"},
+  {o:10,n:"Evangelismo",c:"2 Corintios 5:18"},
+  {o:11,n:"Prioridades bíblicas",c:"Colosenses 3:23"},
+  {o:12,n:"Tribunal de Cristo",c:"2 Corintios 5:10"}
+];
+
+/* ===================================================
+   UTILIDADES TEXTO
+   =================================================== */
+function nRef(r){
+  if(!r)return'';
+  return r.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[\u2013\u2014]/g,'-').replace(/[(),.\\/\u2018\u2019\u201C\u201D]/g,'')
+    .replace(/\s+/g,' ').trim().toLowerCase();
 }
-function tokenize(s){ return s.length? s.split(' ') : []; }
-function compareVersesText(expected, actual){
-  const ne = normalizeText(expected);
-  const na = normalizeText(actual);
-  const te = tokenize(ne);
-  const ta = tokenize(na);
-  const diffs = [];
-  const max = Math.max(te.length, ta.length);
-  let correctCount = 0;
+function nText(s){
+  if(!s)return'';
+  s=s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  s=s.replace(/[^A-Za-z0-9\u00C0-\u017F\s]/g,' ');
+  return s.toLowerCase().replace(/\s+/g,' ').trim();
+}
+function diffWords(expected,actual){
+  const te=nText(expected).split(' ').filter(Boolean);
+  const ta=nText(actual).split(' ').filter(Boolean);
+  const diffs=[];let correct=0;
+  const max=Math.max(te.length,ta.length);
   for(let i=0;i<max;i++){
-    const we = te[i] || null;
-    const wa = ta[i] || null;
-    if(we === wa && we !== null){ diffs.push({type:'ok', expected:we, actual:wa}); correctCount++; }
-    else if(we !== wa && wa === null){ diffs.push({type:'missing', expected:we, actual:''}); }
-    else if(we !== wa && we === null){ diffs.push({type:'extra', expected:'', actual:wa}); }
-    else { diffs.push({type:'wrong', expected:we, actual:wa}); }
+    const we=te[i]||null,wa=ta[i]||null;
+    if(we===wa&&we!==null){diffs.push({t:'ok',e:we,a:wa});correct++;}
+    else if(we&&!wa){diffs.push({t:'missing',e:we,a:''});}
+    else if(!we&&wa){diffs.push({t:'extra',e:'',a:wa});}
+    else{diffs.push({t:'wrong',e:we,a:wa});}
   }
-  const allOk = diffs.every(d=>d.type==='ok');
-  return {allOk, diffs, score: correctCount/Math.max(1,te.length)};
+  return{allOk:diffs.every(d=>d.t==='ok'),diffs,score:correct/Math.max(1,te.length)};
+}
+function normalizar(t){
+  if(!t)return'';
+  let s=t.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  s=s.replace(/[^a-z0-9:\s-]/g,' ').replace(/\b(el|la|los|las|un|una|al|del|lo|y|e|con|por|para|de)\b/g,' ');
+  return s.replace(/\s+/g,' ').trim();
+}
+function tokensR(t){
+  if(!t)return[];
+  let s=t.toString().replace(/\s+\/\s+|\/| - | -|-\s+|;|\band\b|\by\b|\be\b|&/gi,',');
+  const parts=s.split(',').map(p=>p.trim()).filter(Boolean);
+  const tokens=[];
+  for(const part of parts){
+    const n=normalizar(part);if(!n)continue;
+    tokens.push(n);
+    n.split(/\s+/).forEach(w=>{if(w&&!tokens.includes(w))tokens.push(w);});
+  }
+  return [...new Set(tokens)];
+}
+function compareQ(userRaw,correctArr){
+  const uN=normalizar(userRaw);if(!uN)return false;
+  const uT=tokensR(userRaw).map(t=>normalizar(t)).filter(Boolean);
+  for(const rc of correctArr){
+    const rcS=rc==null?'':rc.toString();
+    const rcD=rcS.replace(/\D+/g,'');
+    if(rcD&&/^\d+$/.test(rcD)&&uN.replace(/\D+/g,'')===rcD)return true;
+    const rcT=tokensR(rcS).map(t=>normalizar(t)).filter(Boolean);
+    if(rcT.length===0)continue;
+    if(rcT.length===1){
+      const solo=rcT[0];
+      if(uN===solo||uT.includes(solo)||solo.split(' ').every(w=>uN.includes(w)))return true;
+      continue;
+    }
+    const eParts=rcS.replace(/\s+\/\s+|\/| - | -|-\s+|;|&/g,',').split(',').map(s=>s.trim()).filter(Boolean);
+    const eN=eParts.map(p=>normalizar(p)).filter(Boolean);
+    const principales=eN.length>0?eN:rcT;
+    if(principales.every(esp=>{
+      if(uT.some(ut=>ut===esp))return true;
+      return esp.split(/\s+/).every(pk=>uN.includes(pk));
+    }))return true;
+    if(principales.flatMap(p=>p.split(/\s+/)).every(pk=>uN.includes(pk)))return true;
+  }
+  return false;
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* ===================================================
+   STORAGE / RACHA
+   =================================================== */
+const SK='bib_state_v2',DK='bib_date_v2',STREAK_K='bib_streak_v2';
+function today(){return new Date().toISOString().slice(0,10);}
+function loadState(){
+  try{return JSON.parse(localStorage.getItem(SK))||{};}catch(e){return{};}
+}
+function saveState(s){localStorage.setItem(SK,JSON.stringify(s));}
+function loadStreak(){
+  try{return JSON.parse(localStorage.getItem(STREAK_K))||{streak:0,last:null,totalDays:0,totalVers:0,totalQ:0};}
+  catch(e){return{streak:0,last:null,totalDays:0,totalVers:0,totalQ:0};}
+}
+function saveStreak(s){localStorage.setItem(STREAK_K,JSON.stringify(s));}
+function markActivityToday(){
+  const sd=loadStreak();const t=today();
+  if(sd.last===t)return sd;
+  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
+  const yStr=yesterday.toISOString().slice(0,10);
+  if(sd.last===yStr){sd.streak=(sd.streak||0)+1;}
+  else if(sd.last!==t){sd.streak=1;}
+  sd.last=t;sd.totalDays=(sd.totalDays||0)+1;
+  saveStreak(sd);return sd;
+}
+function addVersStats(n=1){const sd=loadStreak();sd.totalVers=(sd.totalVers||0)+n;saveStreak(sd);}
+function addQStats(n=1){const sd=loadStreak();sd.totalQ=(sd.totalQ||0)+n;saveStreak(sd);}
+
+/* ===================================================
+   RACHA UI
+   =================================================== */
+function renderStreak(){
+  const sd=loadStreak();
+  const streak=sd.streak||0;
+  const DAYS=7;
+  let dots='';
+  for(let i=0;i<DAYS;i++){
+    const dayOff=DAYS-1-i;
+    const d=new Date();d.setDate(d.getDate()-dayOff);
+    const ds=d.toISOString().slice(0,10);
+    let cls='dot';
+    if(ds===sd.last)cls+=' today';
+    else if(sd.last&&ds<sd.last){
+      const diff=Math.floor((new Date(sd.last)-new Date(ds))/(86400000));
+      if(diff<streak)cls+=' done';
+    }
+    dots+=`<div class="${cls}" title="${ds}"></div>`;
+  }
+  return`<div class="streak-bar">
+    <div class="streak-fire">${streak>0?'🔥':'📖'}</div>
+    <div class="streak-info">
+      <div class="streak-label">Racha diaria</div>
+      <div class="streak-num">${streak} día${streak!==1?'s':''}</div>
+      <div class="streak-dots">${dots}</div>
+    </div>
+    <div class="stats-mini">
+      <div class="stat-mini"><div class="val">${sd.totalVers||0}</div><div class="lbl">Versículos</div></div>
+      <div class="stat-mini"><div class="val">${sd.totalQ||0}</div><div class="lbl">Preguntas</div></div>
+      <div class="stat-mini"><div class="val">${sd.totalDays||0}</div><div class="lbl">Días</div></div>
+    </div>
+  </div>`;
 }
 
-/* =========================
-   App principal (DOMContentLoaded)
-   ========================= */
-window.addEventListener('DOMContentLoaded', () => {
+/* ===================================================
+   VERSÍCULOS — estado
+   =================================================== */
+let vState={queue:[],errorsQ:[],practiced:new Set(),difficulty:{},history:{},currentIdx:null,completedPerfect:new Set(),currentCat:'all'};
 
-  /* =========================
-     Datos (lista completa)
-     ========================= */
-  const verses = [
-{ref:"Génesis 1:1", text:"En el principio creó Dios el cielo y la tierra."},
-{ref:"Josué 1:8", text:"El libro de esta ley nunca se apartará de tu boca: antes de día y de noche meditarás en él, para que guardes y hagas conforme a todo lo que en él está escrito: porque entonces harás prosperar tu camino, y todo te saldrá bien."},
-{ref:"Josué 1:9", text:"Mira que te mando que te esfuerces y seas valiente: no temas ni desmayes, porque el SEÑOR tu Dios es contigo en donde quiera que fueres."},
-{ref:"1 Crónicas 16:10", text:"Gloriaos en su santo nombre; alégrese el corazón de los que buscan al SEÑOR."},
-{ref:"1 Crónicas 28:20", text:"Dijo más David a Salomón su hijo: Anímate y esfuérzate, y ponlo por obra; no temas, ni desmayes, porque el SEÑOR Dios, mi Dios, será contigo: él no te dejará, ni te desamparará, hasta que acabes toda la obra para el servicio de la casa del SEÑOR."},
-{ref:"2 Crónicas 15:7", text:"Esforzaos pues vosotros, y no desfallezcan vuestras manos; que salario hay para vuestra obra."},
-{ref:"Esdras 7:10", text:"Porque Esdras había preparado su corazón para inquirir la ley del SEÑOR, y para hacer y enseñar a Israel mandamientos y juicios."},
-{ref:"Nehemías 4:18", text:"Porque los que edificaban, cada uno tenía su espada ceñida a sus lomos, y así edificaban: y el que tocaba la trompeta estaba junto a mí."},
-{ref:"Salmo 27:1", text:"El SEÑOR es mi luz y mi salvación: ¿de quién temeré? el SEÑOR es la fortaleza de mi vida: ¿de quién he de atemorizarme?"},
-{ref:"Salmo 37:4", text:"Pon asimismo tu delicia en el SEÑOR, y él te dará las peticiones de tu corazón."},
-{ref:"Salmo 37:5", text:"Encomienda al SEÑOR tu camino, y espera en él; y él hará."},
-{ref:"Salmo 112:7", text:"De mala fama no tendrá temor: su corazón está apercibido, confiado en el SEÑOR."},
-{ref:"Salmo 119:9", text:"¿Con qué limpiará el joven su camino? Con guardar tu palabra."},
-{ref:"Salmo 119:111", text:"Por heredad he tomado tus testimonios para siempre; porque son el gozo de mi corazón."},
-{ref:"Salmo 126:6", text:"El que lleva la preciosa simiente, andando y llorando, volverá sin duda con regocijo, trayendo sus gavillas."},
-{ref:"Salmo 133:1", text:"¡MIRAD cuán bueno y cuán agradable es habitar los hermanos juntos en unidad!"},
-{ref:"Salmo 138:2", text:"Adoraré hacia tu santo templo, y alabaré tu nombre por tu misericordia y tu verdad: porque has magnificado tu palabra sobre todo tu nombre."},
-{ref:"Proverbios 4:18", text:"Mas la senda de los justos es como la luz de la aurora, que va en aumento hasta el día perfecto."},
-{ref:"Proverbios 10:5", text:"El que recoge en el verano es hijo sabio: pero el que duerme en el tiempo de la siega es hijo que avergüenza."},
-{ref:"Proverbios 20:11", text:"Aun el muchacho es conocido por sus hechos, si su obra fuere limpia y recta."},
-{ref:"Proverbios 27:17", text:"Hierro con hierro se aguza; y el hombre aguza el rostro de su amigo."},
-{ref:"Eclesiastés 11:8", text:"Mas si el hombre viviere muchos años, y en todos ellos hubiere gozado alegría; si después trajere a la memoria los días de las tinieblas, que serán muchos, todo lo que le habrá pasado, dirá haber sido vanidad."},
-{ref:"Jeremías 15:16", text:"Halláronse tus palabras, y yo las comí; y tu palabra me fue por gozo y por alegría de mi corazón: porque tu nombre se invocó sobre mí, oh SEÑOR Dios de los ejércitos."},
-{ref:"Nahum 2:1", text:"Subió destruidor contra ti: guarda la fortaleza, mira el camino, fortifica los lomos, fortalece mucho la fuerza."},
-{ref:"Habacuc 3:18", text:"Con todo, yo me alegraré en el SEÑOR, y me gozaré en el Dios de mi salvación."},
-{ref:"Mateo 13:25", text:"Pero mientras los hombres dormían, vino su enemigo, y sembró cizaña entre el trigo, y se fue."},
-{ref:"Mateo 24:42", text:"Velad pues, porque no sabéis a que hora ha de venir vuestro Señor."},
-{ref:"Mateo 24:43", text:"Pero sabed esto, que si el padre de la familia supiese a cuál vela el ladrón había de venir, velaría, y no dejaría minar su casa."},
-{ref:"Mateo 26:43", text:"Y vino, y los halló otra vez durmiendo; porque los ojos de ellos eran agravados."},
-{ref:"Marcos 13:33", text:"Mirad, velad, y orad; porque no sabéis cuando el tiempo es."},
-{ref:"Lucas 2:10-11", text:"Mas el ángel les dijo: No temáis, porque he aquí os traigo nuevas de gran gozo, que será a todo el pueblo: Que os es nacido hoy en la ciudad de David, el Salvador, que es Cristo el Señor."},
-{ref:"Lucas 14:28", text:"Porque ¿cuál de vosotros, queriendo edificar una torre, no cuenta primero sentado y haga cuenta de los gastos, si tiene lo que ha menester para acabarla?"},
-{ref:"Lucas 21:34", text:"Y mirad por vosotros, que vuestros corazones no sean cargados de glotonería y embriaguez, y de los afanes de esta vida, y venga de repente sobre vosotros aquel día."},
-{ref:"Juan 5:39", text:"Escudriñad las escrituras; porque a vosotros os parece, que en ellas tenéis la vida eterna; y ellas son las que dan testimonio de mí;"},
-{ref:"Juan 6:63", text:"El espíritu es el que da vida: la carne de nada aprovecha: las palabras que yo os hablo, espíritu son, y vida son."},
-{ref:"Juan 11:11", text:"Él dijo estas cosas; y después de esto les dice: Lázaro nuestro amigo duerme; mas voy a despertarle del sueño."},
-{ref:"Hechos 20:24", text:"Mas de ninguna de estas cosas hago caso, ni tengo mi vida preciosa a mí mismo, con tal que acabe mi carrera con gozo, y el ministerio que recibí del Señor Jesús, para dar testimonio del evangelio de la gracia de Dios."},
-{ref:"Romanos 1:16", text:"Porque no me avergüenzo del evangelio de Cristo; porque es el poder de Dios para salvación a todo aquel que cree: al judío primeramente, y también al griego."},
-{ref:"Romanos 3:23", text:"Por cuanto todos pecaron, y están destituidos de la gloria de Dios."},
-{ref:"Romanos 5:8", text:"Mas Dios encarece su amor para con nosotros, en que siendo aún pecadores, Cristo murió por nosotros."},
-{ref:"Romanos 6:23", text:"Porque la paga del pecado es la muerte; mas el don de Dios es vida eterna en Cristo Jesús el Señor nuestro."},
-{ref:"Romanos 8:17", text:"Y si hijos, también herederos: herederos ciertamente de Dios, y coherederos con Cristo: si es que padecemos juntamente con él, para que juntamente con él seamos también glorificados."},
-{ref:"Romanos 8:38-39", text:"Por que estoy persuadido que ni la muerte, ni la vida, ni ángeles, ni principados, ni poderes, ni lo presente, ni lo por venir, Ni lo alto, ni lo bajo, ni ninguna otra criatura nos podrá apartar del amor de Dios, que es en Cristo Jesús, nuestro Señor."},
-{ref:"Romanos 10:9-10", text:"Que si confesares con tu boca al Señor Jesús; y creyeres en tu corazón que Dios le resucitó de entre los muertos, serás salvo. Porque con el corazón se cree para Justicia; y con la boca se hace confesión para salvación."},
-{ref:"Romanos 12:15", text:"Regocijaos con los que se regocijan; y llorad con los que lloran."},
-{ref:"Romanos 13:11", text:"Y esto, conociendo el tiempo, que es ya hora de despertarnos del sueño; porque ahora nos está más cerca nuestra salvación, que cuando creímos."},
-{ref:"1 Corintios 2:5", text:"Para que vuestra fe no sea en la sabiduría de hombres, mas en el poder de Dios."},
-{ref:"1 Corintios 3:10", text:"Conforme a la gracia de Dios que me ha sido dada, yo como sabio maestro de obra, puse el fundamento; mas otro edifica sobre él: pero cada uno vea como edifica sobre él."},
-{ref:"1 Corintios 3:14", text:"Si permaneciere la obra de alguno que sobreedificó, recibirá galardón."},
-{ref:"1 Corintios 12:13", text:"Porque por un Espíritu somos todos bautizados en un cuerpo, ora judíos o gentiles, ora siervos o libres; y a todos se nos ha hecho beber en un Espíritu."},
-{ref:"1 Corintios 13:13", text:"Y ahora permanece la fe, la esperanza, y la caridad, estas tres; pero la mayor de ellas es la caridad."},
-{ref:"1 Corintios 14:40", text:"Háganse todas las cosas decentemente, y con orden."},
-{ref:"1 Corintios 15:3-4", text:"Porque primeramente os he enseñado lo que asimismo yo recibí, que Cristo murió por nuestros pecados, según las Escrituras. Y que fue sepultado, y que resucitó al tercer día, según las Escrituras;"},
-{ref:"1 Corintios 15:34", text:"Despertad a la justicia, y no pequéis; porque algunos no tienen el conocimiento de Dios, para vergüenza vuestra lo digo."},
-{ref:"1 Corintios 15:58", text:"Así que, hermanos míos amados estad firmes y constantes, abundando siempre en la obra del Señor, sabiendo que vuestro trabajo en el Señor no es vano."},
-{ref:"1 Corintios 16:13", text:"Velad, estad firmes en la fe: portaos varonilmente, sed fuertes."},
-{ref:"2 Corintios 4:3-4", text:"Que si nuestro evangelio es encubierto, para los que se pierden es encubierto: En los cuales el dios de este mundo ha cegado la mente de los incrédulos, para que no les resplandezca la luz del evangelio glorioso de Cristo, el cual es la imagen de Dios."},
-{ref:"2 Corintios 4:18", text:"No mirando nosotros a las cosas que se ven, sino a las que no se ven; porque las cosas que se ven son temporales; mas las que no se ven son eternas."},
-{ref:"2 Corintios 5:10", text:"Porque es menester que todos nosotros comparezcamos delante del tribunal de Cristo; para que cada uno reciba las cosas hechas en su cuerpo, según lo que hubiere hecho, sea bueno, o sea malo."},
-{ref:"2 Corintios 5:18", text:"Y todas las cosas son de Dios, el cual nos ha reconciliado consigo mismo por Cristo Jesús, y nos ha dado el ministerio de la reconciliación."},
-{ref:"2 Corintios 5:21", text:"Porque a él que no conoció pecado, lo hizo pecado por nosotros, para que nosotros fuésemos hechos justicia de Dios en él."},
-{ref:"2 Corintios 7:1", text:"Teniendo pues nosotros estas promesas, amados míos, pues que tenemos tales promesas, limpiémonos de toda inmundicia de la carne y del espíritu, perfeccionando la santidad en el temor de Dios."},
-{ref:"2 Corintios 9:7", text:"Cada uno como propuso en su corazón, así dé, no con tristeza, o por necesidad; porque Dios ama el dador alegre."},
-{ref:"2 Corintios 10:4-5", text:"Porque las armas de nuestra milicia no son carnales, sino poderosas por Dios para derribar fortalezas; Derribando imaginaciones, y toda cosa alta que se levanta contra el conocimiento de Dios; y poniendo bajo cautiverio todo pensamiento a la obediencia de Cristo,"},
-{ref:"2 Corintios 13:14", text:"La gracia del Señor Jesús Cristo, y el amor de Dios, y la comunión del Espíritu Santo sea con vosotros todos. Amén"},
-{ref:"Gálatas 2:20", text:"Soy crucificado con Cristo; mas vivo, no ya yo, sino que Cristo vive en mí; y la vida que ahora vivo en la carne, la vivo por la fe del Hijo de Dios, el cual me amó, y se entrego a sí mismo por mí."},
-{ref:"Gálatas 2:21", text:"No frustro la gracia de Dios; porque si por la ley proviene la justicia, entonces Cristo murió en vano."},
-{ref:"Gálatas 5:16", text:"Digo, pues: Andad en el Espíritu; y no cumpliréis las concupiscencias de la carne."},
-{ref:"Gálatas 6:2", text:"Llevad los unos las cargas de los otros; y cumplid así la ley de Cristo."},
-{ref:"Efesios 2:8-9", text:"Porque por gracia sois salvos por la fe, y esto no de vosotros, es el don de Dios: No por obras, para que nadie se gloríe."},
-{ref:"Efesios 2:20-21", text:"Edificados sobre el fundamento de los apóstoles y profetas, Cristo Jesús mismo siendo la principal piedra del ángulo: En el cual todo el edificio, bien trabado consigo mismo, crece para ser templo santo en el Señor:"},
-{ref:"Efesios 4:3", text:"Solícitos a guardar la unidad del Espíritu en el vínculo de la paz."},
-{ref:"Efesios 4:12", text:"Para el perfeccionamiento de los santos para la obra del ministerio, para la edificación del cuerpo de Cristo:"},
-{ref:"Efesios 5:14", text:"Por lo cual dice: Despiértate, tú que duermes, y levántate de entre los muertos, y te alumbrará Cristo."},
-{ref:"Efesios 6:1", text:"Hijos, obedeced a vuestros padres en el Señor; porque esto es justo."},
-{ref:"Efesios 6:10", text:"En fin, hermanos míos, sed fuertes en el Señor, y en la potencia de su fortaleza."},
-{ref:"Efesios 6:13", text:"Por tanto tomad toda la armadura de Dios, para que podáis resistir en el día malo, habiéndolo hecho todo, estar firmes."},
-{ref:"Filipenses 1:10", text:"Para que aprobéis lo mejor, a fin de que seáis sinceros y sin ofensa hasta el día de Cristo,"},
-{ref:"Filipenses 1:21", text:"Porque para mí el vivir es Cristo, y el morir es ganancia."},
-{ref:"Filipenses 1:27", text:"Solamente que vuestro comportamiento sea cual conviene al evangelio de Cristo; para que, o sea que venga y os vea, o que esté ausente, oiga de vuestras cosas, que estáis firmes en un mismo espíritu, con una misma mente combatiendo juntamente por la fe del evangelio;"},
-{ref:"Filipenses 3:10", text:"Para conocerle a él, y el poder de su resurrección, y la comunión de sus padecimientos, siendo hecho conforme a su muerte:"},
-{ref:"Filipenses 3:14", text:"Prosigo hacia el blanco, por el premio de la alta vocación de Dios en Cristo Jesús."},
-{ref:"Filipenses 4:1", text:"Por lo cual, hermanos míos, amados y muy deseados, mi gozo y mi corona, estad así firmes en el Señor, amados míos."},
-{ref:"Filipenses 4:4", text:"Regocijaos en el Señor siempre: otra vez digo, que os regocijéis."},
-{ref:"Filipenses 4:6", text:"Por nada estéis acongojados; sino en todas cosas, por oración y suplicación, con acción de gracias, sean conocidas vuestras peticiones delante de Dios."},
-{ref:"Colosenses 2:6", text:"Por tanto, como habéis recibido a Cristo Jesús el Señor, así andad en él;"},
-{ref:"Colosenses 3:16", text:"La palabra de Cristo more en vosotros ricamente en toda sabiduría; enseñándoos, y amonestándoos los unos a los otros con salmos, e himnos, y cánticos espirituales, cantando con gracia en vuestros corazones al Señor."},
-{ref:"Colosenses 3:23", text:"Y todo lo que hiciereis, hacedlo de corazón, como al Señor, y no a los hombres: Sabiendo que del Señor recibiréis el galardón de la herencia; porque al Señor Cristo servís."},
-{ref:"Colosenses 3:23-24", text:"Y todo lo que hiciereis, hacedlo de corazón, como al Señor, y no a los hombres: Sabiendo que del Señor recibiréis el galardón de la herencia; porque al Señor Cristo servís."},
-{ref:"1 Tesalonicenses 5:6", text:"Por tanto, no durmamos como los demás; antes velemos y seamos sobrios."},
-{ref:"1 Tesalonicenses 5:23", text:"Y el Dios de paz os santifique enteramente; y que todo vuestro espíritu, y alma y cuerpo sean preservados irreprensibles para la venida de nuestro Señor Jesús Cristo."},
-{ref:"2 Tesalonicenses 2:15", text:"Así que, hermanos, estad firmes, y retened la doctrina que habéis sido enseñados, sea por palabra, o por carta nuestra."},
-{ref:"1 Timoteo 2:5", text:"Porque hay un Dios, y un mediador entre Dios y los hombres, el hombre Cristo Jesús;"},
-{ref:"1 Timoteo 3:16", text:"Y sin controversia, grande es el misterio de la piedad: Dios fue manifestado en la carne, justificado en el Espíritu, visto de los ángeles, predicado a los gentiles, creído en el mundo, recibido arriba en gloria."},
-{ref:"1 Timoteo 4:7", text:"Mas desecha las fábulas profanas y de viejas, y ejercítate para la piedad."},
-{ref:"1 Timoteo 4:12", text:"Ninguno tenga en poco tu juventud; mas sé ejemplo de los creyentes en palabra, en conducta, en caridad, en espíritu, en fe, en pureza."},
-{ref:"1 Timoteo 4:14", text:"No descuides el don que está en ti, que te fue dado por profecía, con la imposición de las manos de los ancianos."},
-{ref:"2 Timoteo 1:7", text:"Porque no nos ha dado Dios el espíritu de temor, sino de poder, y de amor, y de templanza."},
-{ref:"2 Timoteo 2:1", text:"Tú, pues, hijo mío, esfuérzate en la gracia que es en Cristo Jesús."},
-{ref:"2 Timoteo 2:2", text:"Y lo que has oído de mí entre muchos testigos, esto encarga a hombres fieles que serán idóneos para enseñar también a otros."},
-{ref:"2 Timoteo 2:15", text:"Estudia para presentarte aprobado a Dios, un obrero que no tiene que avergonzarse, que divide correctamente la palabra de verdad."},
-{ref:"2 Timoteo 3:12", text:"Y aun todos los que vivieren piadosamente en Cristo Jesús, padecerán persecución."},
-{ref:"2 Timoteo 3:14-15", text:"Así que persiste tú en lo que has aprendido, y has sido persuadido, sabiendo de quien has aprendido; Y que desde la niñez has sabido las sagradas Escrituras, las cuales te pueden hacer sabio para la salvación por la fe que es en Cristo Jesús"},
-{ref:"2 Timoteo 3:16-17", text:"Toda escritura es dada por inspiración de Dios, y es útil para doctrina, para redargüir, para corregir, para instrucción en justicia, Para que el hombre de Dios sea perfecto, enteramente aparejado para toda buena obra."},
-{ref:"2 Timoteo 4:2", text:"Predica la palabra; que instes a tiempo y fuera de tiempo; redarguye, reprende, exhorta con toda paciencia y doctrina."},
-{ref:"2 Timoteo 4:5", text:"Tú por tanto vela en todo, sufre aflicciones, haz obra de evangelista, cumple bien tu ministerio:"},
-{ref:"Tito 2:1", text:"Pero tú habla las cosas que convienen a la sana doctrina:"},
-{ref:"Hebreos 4:12", text:"Porque la palabra de Dios es viva y poderosa, y más aguda que toda espada de dos filos; que penetra hasta partir el alma y el espíritu, y las coyunturas y tuétanos, y discierne los pensamientos y las intenciones del corazón."},
-{ref:"Hebreos 11:33", text:"Los cuales por fe sojuzgaron reinos, obraron justicia, alcanzaron promesas, taparon las bocas de leones,"},
-{ref:"1 Pedro 2:20", text:"Porque ¿qué gloria es, si pecando vosotros sois abofeteados, y lo sufrís? pero si haciendo bien, sois afligidos, y lo sufrís, esto es cierto agradable delante de Dios."},
-{ref:"Colosenses 3:2", text:"Poned vuestro afecto en las cosas de arriba, no en las de la tierra."}
-  ];
+function tagCats(){
+  const map={};
+  for(const cat of Object.keys(CAT_LISTS))map[cat]=new Set(CAT_LISTS[cat].map(nRef));
+  VERSES.forEach(v=>{
+    const nr=nRef(v.ref);v.cats=[];
+    for(const cat of Object.keys(map))if(map[cat].has(nr))v.cats.push(cat);
+  });
+}
+tagCats();
 
-  /* =========================
-     Categorías y tag
-     ========================= */
-  const categoryLists = {
-    discipulado: [
-      "Romanos 10:9-10","Romanos 8:38-39","2 Timoteo 3:16-17","Filipenses 4:6",
-      "2 Corintios 13:14","Gálatas 5:16","Efesios 4:12","1 Corintios 12:13",
-      "2 Corintios 9:7","2 Corintios 5:18","2 Corintios 5:10","Colosenses 3:23-24"
-    ],
-    visiones: [
-      "Colosenses 2:6","Efesios 2:20-21","Nehemías 4:18","Efesios 4:3","1 Corintios 15:58",
-      "2 Tesalonicenses 2:15","2 Timoteo 2:15","Filipenses 4:4","1 Tesalonicenses 5:6",
-      "Filipenses 1:10","1 Timoteo 4:7","Hebreos 11:33","Gálatas 6:2","Salmo 37:4",
-      "Lucas 14:28","1 Crónicas 28:20","Colosenses 3:23-24","1 Tesalonicenses 5:23",
-      "Proverbios 27:17","1 Corintios 14:40","2 Corintios 7:1","Colosenses 3:2"
-    ]
-  };
-  function tagCategories(){
-    const map = {};
-    for(const cat of Object.keys(categoryLists)) map[cat] = new Set(categoryLists[cat].map(normalizeRef));
-    verses.forEach(v=>{
-      const nref = normalizeRef(v.ref);
-      v.categories = [];
-      for(const cat of Object.keys(map)) if(map[cat].has(nref)) v.categories.push(cat);
-    });
+function matchCat(idx){
+  if(vState.currentCat==='all'||vState.currentCat==='custom')return true;
+  if(vState.currentCat.startsWith('mes_')){
+    const mes=vState.currentCat.replace('mes_','');
+    const list=(MONTHLY_VERSES[mes]||[]).map(nRef);
+    return list.includes(nRef(VERSES[idx].ref));
   }
-  tagCategories();
-
-  /* =========================
-     Estado y persistencia
-     ========================= */
-  let currentCategory = 'all';
-  let queue = [];
-  let errorsQueue = [];
-  let practiced = new Set();
-  let difficulty = {};
-  let history = {}; // historial por fecha con tiempo
-  let currentIndex = null;
-  let timerEnabled = false;
-  let timerStart = null;
-  let timerInterval = null;
-
-  const STORAGE_KEY = 'versiculos_modes_state_v1';
-  const DATE_KEY = 'versiculos_modes_date_v1';
-
-  function saveState(){
-    const state = {
-      queue, errorsQueue, practiced: Array.from(practiced),
-      difficulty, history, currentIndex, currentCategory,
-      dailyGoal: document.getElementById('dailyGoal').value,
-      completedPerfect: Array.from(completedPerfect)
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }
-  function loadState(){
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return false;
-    try{
-      const s = JSON.parse(raw);
-      queue = s.queue || [];
-      errorsQueue = s.errorsQueue || [];
-      practiced = new Set(s.practiced || []);
-      difficulty = s.difficulty || {};
-      history = s.history || {};
-      currentIndex = s.currentIndex;
-      if(s.currentCategory) currentCategory = s.currentCategory;
-      if(s.dailyGoal) document.getElementById('dailyGoal').value = s.dailyGoal;
-      if(s.completedPerfect) s.completedPerfect.forEach(r=>completedPerfect.add(r));
-      queue = queue.filter(i => matchesCurrentCategory(i));
-      errorsQueue = errorsQueue.filter(i => matchesCurrentCategory(i));
-      return true;
-    }catch(e){ console.error(e); return false; }
-  }
-
-  /* =========================
-     SRS, reencolado y utilidades
-     ========================= */
-  function ensureDifficulty(){ for(let i=0;i<verses.length;i++){ if(!(i in difficulty)) difficulty[i] = 0; } }
-  function recordDifficulty(idx, wasCorrect){
-    if(!(idx in difficulty)) difficulty[idx] = 0;
-    difficulty[idx] = wasCorrect ? Math.max(0, difficulty[idx]-1) : (difficulty[idx]||0)+1;
-    saveState();
-  }
-  function ensureHistoryForDate(date){ if(!history[date]) history[date] = {attempted:0, correct:0, errors:0, details: []}; }
-  function recordHistory(idx, result, timeSeconds){
-    const today = new Date().toISOString().slice(0,10);
-    ensureHistoryForDate(today);
-    history[today].attempted++;
-    if(result === 'correct') history[today].correct++;
-    if(result === 'error') history[today].errors++;
-    history[today].details.push({idx, ref: verses[idx].ref, result, timeSeconds: timeSeconds || null, timestamp: new Date().toISOString()});
-    saveState();
-  }
-
-  function scheduleRequeue(idx, options = {}){
-    const minAhead = options.minAhead || 2;
-    const maxAhead = options.maxAhead || 6;
-    const allowDuplicates = options.allowDuplicates || false;
-    if(!allowDuplicates) queue = queue.filter(i => i !== idx);
-    if(!errorsQueue.includes(idx)) errorsQueue.push(idx);
-    if(queue.length === 0){ queue.push(idx); return; }
-    const ahead = Math.floor(Math.random() * (maxAhead - minAhead + 1)) + minAhead;
-    let insertPos = ahead;
-    if(insertPos > queue.length) insertPos = queue.length;
-    queue.splice(insertPos, 0, idx);
-  }
-
-  function matchesCurrentCategory(idx){
-    if(currentCategory === 'all') return true;
-    const cats = verses[idx].categories || [];
-    return cats.includes(currentCategory);
-  }
-
-  function prepareDailyQueue(forceRebuild=false){
-    const goal = Math.max(1, parseInt(document.getElementById('dailyGoal').value||5));
-    const today = new Date().toISOString().slice(0,10);
-    const lastDate = localStorage.getItem(DATE_KEY);
-    if(lastDate !== today){
-      if(practiced.size >= verses.length) practiced = new Set();
-      localStorage.setItem(DATE_KEY, today);
-      queue = [];
+  return(VERSES[idx].cats||[]).includes(vState.currentCat);
+}
+function loadVState(){
+  const raw=localStorage.getItem(SK);if(!raw)return;
+  try{
+    const s=JSON.parse(raw);
+    vState.queue=s.queue||[];vState.errorsQ=s.errorsQ||[];
+    vState.practiced=new Set(s.practiced||[]);vState.difficulty=s.difficulty||{};
+    vState.history=s.history||{};vState.currentIdx=s.currentIdx;
+    vState.completedPerfect=new Set(s.completedPerfect||[]);
+    vState.currentCat=s.currentCat||'all';
+    vState.queue=vState.queue.filter(i=>matchCat(i));
+    vState.errorsQ=vState.errorsQ.filter(i=>matchCat(i));
+  }catch(e){}
+}
+function saveVState(){
+  const s={...vState,practiced:[...vState.practiced],completedPerfect:[...vState.completedPerfect]};
+  localStorage.setItem(SK,JSON.stringify(s));
+}
+function recDiff(idx,ok){
+  if(!(idx in vState.difficulty))vState.difficulty[idx]=0;
+  vState.difficulty[idx]=ok?Math.max(0,vState.difficulty[idx]-1):vState.difficulty[idx]+1;
+  saveVState();
+}
+function requeue(idx){
+  vState.queue=vState.queue.filter(i=>i!==idx);
+  if(!vState.errorsQ.includes(idx))vState.errorsQ.push(idx);
+  if(vState.queue.length===0){vState.queue.push(idx);return;}
+  const pos=Math.min(2+Math.floor(Math.random()*4),vState.queue.length);
+  vState.queue.splice(pos,0,idx);
+}
+function prepQueue(goal,useSRS){
+  const t=today();const last=localStorage.getItem(DK);
+  if(last!==t){if(vState.practiced.size>=VERSES.length)vState.practiced=new Set();localStorage.setItem(DK,t);vState.queue=[];}
+  if(!(0 in vState.difficulty))VERSES.forEach((_,i)=>{if(!(i in vState.difficulty))vState.difficulty[i]=0;});
+  if(vState.queue.length===0){
+    let avail=VERSES.map((_,i)=>i).filter(i=>!vState.practiced.has(i)&&matchCat(i));
+    if(!avail.length){vState.practiced=new Set();avail=VERSES.map((_,i)=>i).filter(i=>matchCat(i));}
+    if(useSRS){
+      avail.sort((a,b)=>(vState.difficulty[b]||0)-(vState.difficulty[a]||0));
+      shuffle(avail);
+      const rev=VERSES.map((_,i)=>i).filter(i=>vState.practiced.has(i)&&(vState.difficulty[i]||0)>0&&matchCat(i));
+      rev.sort((a,b)=>(vState.difficulty[b]||0)-(vState.difficulty[a]||0));
+      vState.queue=[...avail.slice(0,goal),...rev.slice(0,Math.floor(goal/3))];
+    }else{
+      shuffle(avail);vState.queue=avail.slice(0,Math.min(goal,avail.length));
     }
-    ensureDifficulty();
-    if(queue.length === 0 || forceRebuild){
-      let available = verses.map((v,i)=>i).filter(i => !practiced.has(i) && matchesCurrentCategory(i));
-      if(available.length === 0){
-        practiced = new Set();
-        available = verses.map((v,i)=>i).filter(i => matchesCurrentCategory(i));
-      }
-      const useSRS = document.getElementById('enableSRS').checked;
-      if(useSRS){
-        const reviewPool = verses.map((v,i)=>i).filter(i => practiced.has(i) && (difficulty[i]||0)>0 && matchesCurrentCategory(i));
-        available.sort((a,b) => (difficulty[b]||0) - (difficulty[a]||0));
-        for(let i=available.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [available[i],available[j]]=[available[j],available[i]]; }
-        const takeFromAvailable = Math.min(goal, available.length);
-        const takeFromReview = Math.min(Math.max(0, Math.floor(goal/3)), reviewPool.length);
-        const selected = available.slice(0, takeFromAvailable);
-        reviewPool.sort((a,b) => (difficulty[b]||0) - (difficulty[a]||0));
-        selected.push(...reviewPool.slice(0, takeFromReview));
-        queue = selected;
-      } else {
-        for(let i=available.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [available[i],available[j]]=[available[j],available[i]]; }
-        queue = available.slice(0, Math.min(goal, available.length));
-      }
-    } else {
-      queue = queue.filter(i => matchesCurrentCategory(i));
-      errorsQueue = errorsQueue.filter(i => matchesCurrentCategory(i));
-    }
-    document.getElementById('todayCount').textContent = queue.length;
-    updateQueueInfo();
-    saveState();
+  }else{
+    vState.queue=vState.queue.filter(i=>matchCat(i));
+    vState.errorsQ=vState.errorsQ.filter(i=>matchCat(i));
   }
+  saveVState();
+}
+function getNext(){if(vState.queue.length>0)return vState.queue.shift();if(vState.errorsQ.length>0)return vState.errorsQ.shift();return null;}
 
-  function getNextIndex(){ if(queue.length>0) return queue.shift(); if(errorsQueue.length>0) return errorsQueue.shift(); return null; }
-  function updateQueueInfo(){ document.getElementById('queueInfo').textContent = `En cola: ${queue.length}  Errores: ${errorsQueue.length}  Practicados: ${practiced.size}  (Filtro: ${currentCategory})`; }
+/* ===================================================
+   VERSÍCULOS — render
+   =================================================== */
+let vMode='normal',vSRS=true,vGoal=5,vTimer=false,vTimerStart=null;
+let vCurrentIdx=null;
 
-  /* =========================
-     Selector state y completados
-     ========================= */
-  const selectedSet = new Set();
-  const completedPerfect = new Set();
+function tip(text){
+  return`<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">${text}</span></span>`;
+}
 
-  function renderSelectedSummary(){
-    const container = document.getElementById('selectedListItems');
-    const countEl = document.getElementById('selectedCount');
-    const arr = Array.from(selectedSet);
-    countEl.textContent = arr.length;
-    if(arr.length === 0){ container.innerHTML = '<div class="small muted">No hay versículos seleccionados.</div>'; return; }
-    container.innerHTML = '';
-    arr.forEach(idx=>{
-      const v = verses[idx];
-      const div = document.createElement('div');
-      div.className = 'selected-item';
-      div.innerHTML = `<div style="flex:1"><strong>${v.ref}</strong><div class="small">${v.text.slice(0,80)}${v.text.length>80?'...':''}</div></div>
-        <div style="margin-left:8px"><button class="small-btn remove-selected" data-idx="${idx}">Quitar</button></div>`;
-      container.appendChild(div);
-    });
-    container.querySelectorAll('.remove-selected').forEach(b=>{
-      b.addEventListener('click', ()=>{
-        const idx = parseInt(b.getAttribute('data-idx'));
-        selectedSet.delete(idx);
-        const cb = document.querySelector(`.selector-checkbox[data-idx="${idx}"]`);
-        if(cb) cb.checked = false;
-        renderSelectedSummary();
-      });
-    });
+const MESES_LABEL={enero:'Enero',febrero:'Febrero',marzo:'Marzo',abril:'Abril',mayo:'Mayo',junio:'Junio'};
+
+/* Devuelve la lista de versículos para una categoría o mes dado */
+function getVerseListForCat(cat){
+  if(cat==='all') return VERSES.map((v,i)=>({idx:i,ref:v.ref,text:v.text}));
+  if(cat.startsWith('mes_')){
+    const mes=cat.replace('mes_','');
+    const refs=(MONTHLY_VERSES[mes]||[]).map(nRef);
+    return VERSES.map((v,i)=>({idx:i,ref:v.ref,text:v.text})).filter(v=>refs.includes(nRef(v.ref)));
   }
+  return VERSES.map((v,i)=>({idx:i,ref:v.ref,text:v.text})).filter(v=>(VERSES[v.idx].cats||[]).includes(cat));
+}
 
-  /* =========================
-     Selector render y comportamiento
-     ========================= */
-  const selectorModal = document.getElementById('selectorModal');
-  const selectorList = document.getElementById('selectorList');
-  const selectorSearch = document.getElementById('selectorSearch');
+/* Genera el bloque desplegable con la lista de versículos */
+function buildPreview(cat, label){
+  const list=getVerseListForCat(cat);
+  if(!list.length) return '';
+  const items=list.map((v,i)=>`
+    <div class="cat-prev-item">
+      <span class="cat-prev-num">${i+1}</span>
+      <span class="cat-prev-ref">${v.ref}</span>
+      <span class="cat-prev-txt">${v.text.slice(0,80)}${v.text.length>80?'…':''}</span>
+    </div>`).join('');
+  const uid='prev_'+cat.replace(/[^a-z0-9]/gi,'_');
+  return`<div class="cat-preview">
+    <div class="cat-preview-hdr" id="${uid}_hdr" onclick="togglePreview('${uid}')">
+      <span class="ph-label">📋 Versículos de ${label}</span>
+      <span class="ph-count">${list.length} versículos</span>
+      <span class="ph-arrow">▼</span>
+    </div>
+    <div class="cat-preview-list" id="${uid}_list">${items}</div>
+  </div>`;
+}
 
-  document.getElementById('showAllBtn').addEventListener('click', ()=>{ renderSelectorList(true); document.getElementById('overlay').style.display='block'; selectorModal.style.display='block'; });
-  document.getElementById('closeSelectorBtn').addEventListener('click', ()=>{ selectorModal.style.display='none'; document.getElementById('overlay').style.display='none'; });
+function togglePreview(uid){
+  const hdr=document.getElementById(uid+'_hdr');
+  const list=document.getElementById(uid+'_list');
+  if(!hdr||!list)return;
+  const isOpen=list.classList.contains('open');
+  hdr.classList.toggle('open',!isOpen);
+  list.classList.toggle('open',!isOpen);
+}
 
-  document.getElementById('selectAllBtn').addEventListener('click', ()=>{
-    selectorList.querySelectorAll('.selector-checkbox').forEach(cb=>{
-      cb.checked = true;
-      selectedSet.add(parseInt(cb.getAttribute('data-idx')));
-    });
-    renderSelectedSummary();
-  });
-  document.getElementById('clearSelectionBtn').addEventListener('click', ()=>{
-    selectorList.querySelectorAll('.selector-checkbox').forEach(cb=>{
-      cb.checked = false;
-    });
-    const visibleIdx = Array.from(selectorList.querySelectorAll('.selector-checkbox')).map(cb=>parseInt(cb.getAttribute('data-idx')));
-    visibleIdx.forEach(i => selectedSet.delete(i));
-    renderSelectedSummary();
-  });
+let vCatTabActive='fijas'; // 'fijas' | 'mensuales'
+let vMesSelected='';       // nombre del mes seleccionado dentro de mensuales
 
-  document.getElementById('clearSelectedBtn').addEventListener('click', ()=>{
-    selectedSet.clear();
-    selectorList.querySelectorAll('.selector-checkbox').forEach(cb=>cb.checked=false);
-    renderSelectedSummary();
-  });
+function renderVers(){
+  loadVState();
+  const el=document.getElementById('tab-vers');
 
-  selectorSearch.addEventListener('input', ()=> renderSelectorList(selectorModal.dataset.showAll === 'true'));
+  // Construir preview para fijas
+  const previewAll=buildPreview('all','todas las categorías');
+  const previewDisc=buildPreview('discipulado','Discipulado');
+  const previewVis=buildPreview('visiones','Visiones');
 
-  function renderSelectorList(forceAll){
-    const q = (selectorSearch.value || '').trim().toLowerCase();
-    selectorList.innerHTML = '';
-    const showAll = !!forceAll;
-    selectorModal.dataset.showAll = showAll ? 'true' : 'false';
-    verses.forEach((v, idx) => {
-      if(!showAll && !matchesCurrentCategory(idx)) return;
-      const cats = (v.categories || []).map(c => `<span class="category-badge">${c}</span>`).join(' ');
-      const textLower = (v.ref + ' ' + v.text + ' ' + (v.categories||[]).join(' ')).toLowerCase();
-      if(q && !textLower.includes(q)) return;
-      const row = document.createElement('div');
-      row.className = 'verse-row';
-      row.innerHTML = `
-        <input type="checkbox" data-idx="${idx}" class="selector-checkbox" />
-        <div class="verse-ref">${v.ref}<div style="margin-top:6px">${cats}</div></div>
-        <div class="verse-text">${v.text}</div>
-        <div class="selector-actions">
-          <button class="btn-link" data-action="view" data-idx="${idx}">Ver</button>
-          <button class="btn-link" data-action="add" data-idx="${idx}">Añadir</button>
-          <button class="btn-link" data-action="practice" data-idx="${idx}">Practicar ahora</button>
+  // Construir cuadrícula de meses
+  const monthBtns=Object.keys(MONTHLY_VERSES).map(m=>`
+    <div class="month-btn ${vMesSelected===m?'selected':''}" onclick="selectMes('${m}')">
+      <div class="m-name">${MESES_LABEL[m]}</div>
+      <div class="m-count">${MONTHLY_VERSES[m].length} vers.</div>
+    </div>`).join('');
+
+  // Preview del mes seleccionado
+  const previewMes=vMesSelected?buildPreview('mes_'+vMesSelected, MESES_LABEL[vMesSelected]):'';
+
+  el.innerHTML=`
+  ${renderStreak()}
+  <div class="card">
+    <div class="section-title">Configuración ${tip('Ajusta cómo quieres estudiar antes de iniciar la sesión.')}</div>
+    <div class="controls-row">
+      <label class="ctrl-label">Meta diaria ${tip('Cuántos versículos nuevos practicar por sesión. Los errores se añaden automáticamente sobre este número.')}
+        <input type="number" id="v-goal" class="ctrl-num" min="1" value="${vGoal}"/>
+      </label>
+      <label class="ctrl-label">
+        <label class="toggle-sw"><input type="checkbox" id="v-srs" ${vSRS?'checked':''}/><span class="sw-track"></span></label>
+        SRS ${tip('Repetición Espaciada: los versículos que más te cuestan aparecen primero y con mayor frecuencia. Recomendado para memorización a largo plazo.')}
+      </label>
+      <label class="ctrl-label">Modo ${tip('Ref→Texto: te muestra la cita y escribes el versículo completo. Texto→Ref: te muestra el versículo y debes escribir la referencia.')}
+        <select id="v-mode" class="ctrl-sel">
+          <option value="normal" ${vMode==='normal'?'selected':''}>Ref → Texto</option>
+          <option value="inverse" ${vMode==='inverse'?'selected':''}>Texto → Ref</option>
+        </select>
+      </label>
+      <label class="ctrl-label">
+        <label class="toggle-sw"><input type="checkbox" id="v-timer" ${vTimer?'checked':''}/><span class="sw-track"></span></label>
+        Cronómetro ${tip('Mide cuántos segundos tardas en responder cada versículo. Se muestra al comprobar.')}
+      </label>
+    </div>
+    <div class="controls-row">
+      <button class="btn btn-sm danger" onclick="vReset()">Reiniciar progreso</button>
+    </div>
+    <div id="v-qinfo" class="queue-info"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Selecciona una categoría para estudiar ${tip('Elige entre categorías fijas, versículos mensuales, o arma tu propia selección.')}</div>
+    <div class="cat-tabs">
+      <div class="cat-tab ${vCatTabActive==='fijas'?'active':''}" onclick="switchCatTab('fijas')">Categorías fijas</div>
+      <div class="cat-tab ${vCatTabActive==='mensuales'?'active':''}" onclick="switchCatTab('mensuales')">Versículos mensuales</div>
+      <div class="cat-tab ${vCatTabActive==='elige'?'active':''}" onclick="switchCatTab('elige')">Elige tus versículos</div>
+    </div>
+
+    <!-- TAB: Categorías fijas -->
+    <div class="cat-section ${vCatTabActive==='fijas'?'visible':''}" id="tab-fijas">
+      <div class="month-grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))">
+        <div class="month-btn ${vState.currentCat==='all'&&vCatTabActive==='fijas'?'selected':''}" onclick="selectCatFija('all')">
+          <div class="m-name">📚 Todas</div>
+          <div class="m-count">${VERSES.length} versículos</div>
         </div>
-      `;
-      selectorList.appendChild(row);
-    });
+        <div class="month-btn ${vState.currentCat==='discipulado'?'selected':''}" onclick="selectCatFija('discipulado')">
+          <div class="m-name">🤝 Discipulado</div>
+          <div class="m-count">${getVerseListForCat('discipulado').length} versículos</div>
+        </div>
+        <div class="month-btn ${vState.currentCat==='visiones'?'selected':''}" onclick="selectCatFija('visiones')">
+          <div class="m-name">✨ Visiones</div>
+          <div class="m-count">${getVerseListForCat('visiones').length} versículos</div>
+        </div>
+      </div>
+      <div id="preview-fija">
+        ${vState.currentCat==='all'?previewAll:vState.currentCat==='discipulado'?previewDisc:vState.currentCat==='visiones'?previewVis:''}
+      </div>
+      <div class="cat-start-row" id="fija-start-row" style="${['all','discipulado','visiones'].includes(vState.currentCat)&&vCatTabActive==='fijas'?'':'display:none'}">
+        <button class="btn primary" onclick="vStartFromCat()">▶ Iniciar sesión</button>
+        <span style="font-size:0.78rem;color:var(--text3)">Categoría activa: <strong style="color:var(--gold)">${
+          vState.currentCat==='all'?'Todas':vState.currentCat==='discipulado'?'Discipulado':vState.currentCat==='visiones'?'Visiones':''
+        }</strong></span>
+      </div>
+    </div>
 
-    selectorList.querySelectorAll('.selector-checkbox').forEach(cb=>{
-      const idx = parseInt(cb.getAttribute('data-idx'));
-      cb.checked = selectedSet.has(idx);
-      cb.addEventListener('change', ()=>{
-        if(cb.checked) selectedSet.add(idx); else selectedSet.delete(idx);
-        renderSelectedSummary();
+    <!-- TAB: Mensuales -->
+    <div class="cat-section ${vCatTabActive==='mensuales'?'visible':''}" id="tab-mensuales">
+      <div class="month-grid">${monthBtns}</div>
+      <div id="preview-mes">${previewMes}</div>
+      <div class="cat-start-row" id="mes-start-row" style="${vMesSelected?'':'display:none'}">
+        <button class="btn primary" onclick="vStartFromMes()">▶ Iniciar sesión</button>
+        <span style="font-size:0.78rem;color:var(--text3)">Mes activo: <strong style="color:var(--gold)">${vMesSelected?MESES_LABEL[vMesSelected]:''}</strong></span>
+      </div>
+    </div>
+
+    <!-- TAB: Elige tus versículos -->
+    <div class="cat-section ${vCatTabActive==='elige'?'visible':''}" id="tab-elige"></div>
+  </div>
+
+  <div id="v-session" style="display:none">
+    <div id="v-card-wrap"></div>
+    <div class="action-row">
+      <button class="btn primary" id="v-check" onclick="vCheck()">Comprobar</button>
+      <button class="btn btn-sm" id="v-dontknow" onclick="vDontKnow()">No lo sé</button>
+      <button class="btn btn-sm" id="v-skip" onclick="vSkip()">Saltar</button>
+      <button class="btn success-btn" id="v-next" style="display:none" onclick="vNext()">Siguiente →</button>
+      <span id="v-feedback"></span>
+    </div>
+    <div id="v-completed"></div>
+  </div>`;
+
+  updateQInfo();
+  if(vState.queue.length>0||vState.errorsQ.length>0||vState.practiced.size>0){
+    document.getElementById('v-session').style.display='block';
+    if(vCurrentIdx!==null)renderCard(vCurrentIdx);
+  }
+  document.getElementById('v-goal').onchange=e=>{vGoal=Math.max(1,parseInt(e.target.value)||5);};
+  document.getElementById('v-srs').onchange=e=>{vSRS=e.target.checked;};
+  document.getElementById('v-timer').onchange=e=>{vTimer=e.target.checked;};
+  document.getElementById('v-mode').onchange=e=>{vMode=e.target.value;};
+  // Si la pestaña elige ya estaba activa, renderizar su contenido
+  if(vCatTabActive==='elige') renderSelTab();
+}
+
+function switchCatTab(tab){
+  vCatTabActive=tab;
+  // Mostrar/ocultar secciones sin re-render completo para no perder el estado del buscador
+  ['fijas','mensuales','elige'].forEach(t=>{
+    const sec=document.getElementById('tab-'+t);
+    const btn=document.querySelector(`.cat-tab:nth-child(${t==='fijas'?1:t==='mensuales'?2:3})`);
+    if(sec) sec.classList.toggle('visible',t===tab);
+  });
+  // Actualizar estilos de pestañas
+  document.querySelectorAll('.cat-tab').forEach((el,i)=>{
+    el.classList.toggle('active',['fijas','mensuales','elige'][i]===tab);
+  });
+  if(tab==='elige') renderSelTab();
+}
+
+function selectCatFija(cat){
+  vState.currentCat=cat;
+  vCatTabActive='fijas';
+  vState.queue=[];
+  vState.errorsQ=vState.errorsQ.filter(i=>matchCat(i));
+  saveVState();
+  renderVers();
+}
+
+function selectMes(mes){
+  vMesSelected=mes;
+  vCatTabActive='mensuales';
+  // actualizar preview sin re-renderizar todo
+  const previewEl=document.getElementById('preview-mes');
+  if(previewEl) previewEl.innerHTML=buildPreview('mes_'+mes, MESES_LABEL[mes]);
+  // marcar botón activo
+  document.querySelectorAll('.month-btn').forEach(b=>b.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  // mostrar botón de inicio
+  const startRow=document.getElementById('mes-start-row');
+  if(startRow){
+    startRow.style.display='flex';
+    startRow.querySelector('strong').textContent=MESES_LABEL[mes];
+  }
+}
+
+function vStartFromCat(){
+  vGoal=Math.max(1,parseInt(document.getElementById('v-goal').value)||5);
+  vSRS=document.getElementById('v-srs').checked;
+  vTimer=document.getElementById('v-timer').checked;
+  vMode=document.getElementById('v-mode').value;
+  // currentCat ya fue seteado al seleccionar
+  prepQueue(vGoal,vSRS);
+  document.getElementById('v-session').style.display='block';
+  markActivityToday();
+  const idx=getNext();renderCard(idx);updateQInfo();
+  document.getElementById('v-session').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function vStartFromMes(){
+  if(!vMesSelected) return;
+  vGoal=Math.max(1,parseInt(document.getElementById('v-goal').value)||5);
+  vSRS=document.getElementById('v-srs').checked;
+  vTimer=document.getElementById('v-timer').checked;
+  vMode=document.getElementById('v-mode').value;
+  vState.currentCat='mes_'+vMesSelected;
+  vState.queue=[];
+  vState.errorsQ=vState.errorsQ.filter(i=>matchCat(i));
+  saveVState();
+  prepQueue(vGoal,vSRS);
+  document.getElementById('v-session').style.display='block';
+  markActivityToday();
+  const idx=getNext();renderCard(idx);updateQInfo();
+  document.getElementById('v-session').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function updateQInfo(){
+  const el=document.getElementById('v-qinfo');
+  if(el)el.textContent=`Cola: ${vState.queue.length}  ·  Errores: ${vState.errorsQ.length}  ·  Practicados hoy: ${vState.practiced.size}`;
+}
+function vStart(){
+  // fallback por si se llama desde otro lado
+  vStartFromCat();
+}
+function renderCard(idx){
+  const wrap=document.getElementById('v-card-wrap');
+  if(!wrap)return;
+  if(idx===null||idx===undefined){
+    wrap.innerHTML=`<div class="card"><p style="color:var(--text2);text-align:center;padding:20px">✓ Sin más versículos en cola</p></div>`;
+    document.getElementById('v-check').style.display='none';
+    document.getElementById('v-dontknow').style.display='none';
+    document.getElementById('v-skip').style.display='none';
+    return;
+  }
+  vCurrentIdx=idx;
+  const v=VERSES[idx];
+  const cats=(v.cats||[]).map(c=>`<span class="verse-cat">${c}</span>`).join(' ');
+  if(vMode==='normal'){
+    wrap.innerHTML=`
+    <div class="verse-flip-wrap">
+      <div class="verse-flip" id="vflip">
+        <div class="verse-face front">
+          <div class="verse-ref">${v.ref}</div>${cats}
+          <div class="verse-hint">Escribe el versículo (sin importar tildes, puntuación ni mayúsculas)</div>
+        </div>
+        <div class="verse-face back">
+          <div class="verse-ref">${v.ref}</div>
+          <div class="verse-text-display">${v.text}</div>
+        </div>
+      </div>
+      <div class="verse-flip-spacer"><div class="verse-ref" style="opacity:0">${v.ref}</div><div class="verse-hint" style="opacity:0">.</div></div>
+    </div>
+    <textarea class="answer-ta" id="v-ans" placeholder="Escribe aquí el versículo…" onkeydown="if(event.ctrlKey&&event.key==='Enter')vCheck()"></textarea>
+    <div id="v-diff"></div>`;
+  }else{
+    // Calcular alto aproximado del texto para el spacer
+    const textLen=v.text.length;
+    const approxLines=Math.ceil(textLen/55);
+    const spacerH=Math.max(140, 60 + approxLines*28);
+    wrap.innerHTML=`
+    <div class="verse-flip-wrap" style="margin-bottom:${spacerH+14}px;min-height:${spacerH}px">
+      <div class="verse-flip" id="vflip" style="min-height:${spacerH}px">
+        <div class="verse-face front" style="min-height:${spacerH}px">
+          ${cats}
+          <div class="verse-text-display">"${v.text}"</div>
+          <div class="verse-hint">Escribe la referencia (ej: Juan 3:16)</div>
+        </div>
+        <div class="verse-face back" style="min-height:${spacerH}px">
+          <div class="verse-ref">${v.ref}</div>
+          <div class="verse-text-display">${v.text}</div>
+        </div>
+      </div>
+    </div>
+    <input class="answer-in" id="v-ans" placeholder="Escribe la referencia…" onkeydown="if(event.key==='Enter')vCheck()"/>
+    <div id="v-diff"></div>`;
+  }
+  document.getElementById('v-check').style.display='inline-block';
+  document.getElementById('v-dontknow').style.display='inline-block';
+  document.getElementById('v-skip').style.display='inline-block';
+  document.getElementById('v-next').style.display='none';
+  document.getElementById('v-feedback').textContent='';
+  if(vTimer)vTimerStart=Date.now(); else vTimerStart=null;
+  setTimeout(()=>{const a=document.getElementById('v-ans');if(a)a.focus();},50);
+  saveVState();
+}
+function vCheck(){
+  const ans=(document.getElementById('v-ans')||{}).value||'';
+  const idx=vCurrentIdx;if(idx===null)return;
+  const v=VERSES[idx];
+  const elapsed=vTimerStart?Math.round((Date.now()-vTimerStart)/1000):null;
+  vTimerStart=null;
+  const flip=document.getElementById('vflip');if(flip)flip.classList.add('flipped');
+  const fb=document.getElementById('v-feedback');
+  const diff=document.getElementById('v-diff');
+  if(vMode==='normal'){
+    const res=diffWords(v.text,ans);
+    if(diff){
+      let html='<div class="diff-area">';
+      res.diffs.forEach(d=>{
+        if(d.t==='ok')html+=`<span class="dw ok">${d.e}</span>`;
+        else if(d.t==='wrong')html+=`<span class="dw wrong">${d.a}</span><span class="dw missing">${d.e}</span>`;
+        else if(d.t==='missing')html+=`<span class="dw missing">${d.e}</span>`;
+        else html+=`<span class="dw extra">${d.a}</span>`;
       });
-    });
-
-    selectorList.querySelectorAll('[data-action]').forEach(btn=>{
-      btn.addEventListener('click', (e)=>{
-        const action = btn.getAttribute('data-action');
-        const idx = parseInt(btn.getAttribute('data-idx'));
-        if(action === 'view') openVerseModal(idx);
-        if(action === 'add') { selectedSet.add(idx); renderSelectedSummary(); addSingleToQueue(idx); }
-        if(action === 'practice') { selectedSet.add(idx); renderSelectedSummary(); practiceSingleNow(idx); }
-      });
-    });
-
-    renderSelectedSummary();
+      html+=`</div><div class="accuracy">Precisión: ${Math.round(res.score*100)}%</div>`;
+      diff.innerHTML=html;
+    }
+    if(res.allOk){
+      vState.practiced.add(idx);recDiff(idx,true);
+      vState.completedPerfect.add(v.ref);
+      addVersStats(1);markActivityToday();
+      fb.innerHTML=`<span class="feedback-bar correct">✓ Perfecto${elapsed!==null?' — '+elapsed+'s':''}</span>`;
+      document.getElementById('v-next').style.display='inline-block';
+      document.getElementById('v-check').style.display='none';
+      document.getElementById('v-skip').style.display='none';
+      document.getElementById('v-dontknow').style.display='none';
+    }else{
+      requeue(idx);recDiff(idx,false);
+      fb.innerHTML=`<span class="feedback-bar wrong">✗ Hay errores — se repetirá${elapsed!==null?' — '+elapsed+'s':''}</span>`;
+      document.getElementById('v-next').style.display='inline-block';
+    }
+  }else{
+    const ok=nRef(v.ref)===nRef(ans);
+    if(ok){
+      vState.practiced.add(idx);recDiff(idx,true);
+      vState.completedPerfect.add(v.ref);
+      addVersStats(1);markActivityToday();
+      fb.innerHTML=`<span class="feedback-bar correct">✓ Correcto: ${v.ref}${elapsed!==null?' — '+elapsed+'s':''}</span>`;
+      document.getElementById('v-next').style.display='inline-block';
+      document.getElementById('v-check').style.display='none';
+      document.getElementById('v-skip').style.display='none';
+      document.getElementById('v-dontknow').style.display='none';
+    }else{
+      requeue(idx);recDiff(idx,false);
+      if(diff)diff.innerHTML=`<div class="diff-area" style="color:var(--text2)">Referencia correcta: <strong style="color:var(--gold)">${v.ref}</strong></div>`;
+      fb.innerHTML=`<span class="feedback-bar wrong">✗ Incorrecto${elapsed!==null?' — '+elapsed+'s':''}</span>`;
+      document.getElementById('v-next').style.display='inline-block';
+    }
   }
+  updateQInfo();renderCompleted();saveVState();
+}
+function vDontKnow(){
+  const idx=vCurrentIdx;if(idx===null)return;
+  const flip=document.getElementById('vflip');if(flip)flip.classList.add('flipped');
+  requeue(idx);recDiff(idx,false);
+  document.getElementById('v-feedback').innerHTML=`<span class="feedback-bar skip">Programado para repetición</span>`;
+  document.getElementById('v-next').style.display='inline-block';
+  document.getElementById('v-check').style.display='none';
+  document.getElementById('v-skip').style.display='none';
+  document.getElementById('v-dontknow').style.display='none';
+  updateQInfo();saveVState();
+}
+function vSkip(){
+  const idx=vCurrentIdx;if(idx!==null){requeue(idx);recDiff(idx,false);}
+  document.getElementById('v-feedback').innerHTML=`<span class="feedback-bar skip">Saltado</span>`;
+  saveVState();vNext();
+}
+function vNext(){
+  const idx=getNext();renderCard(idx);updateQInfo();saveVState();
+}
+function renderCompleted(){
+  const box=document.getElementById('v-completed');if(!box)return;
+  const arr=[...vState.completedPerfect];
+  if(!arr.length){box.innerHTML='';return;}
+  box.innerHTML=`<div class="completed-box"><div class="lbl">Completados perfectamente (${arr.length})</div>${arr.map(r=>`<div class="completed-ref">✓ ${r}</div>`).join('')}</div>`;
+}
+function vReset(){
+  if(!confirm('¿Reiniciar todo el progreso?'))return;
+  localStorage.removeItem(SK);localStorage.removeItem(DK);
+  vState={queue:[],errorsQ:[],practiced:new Set(),difficulty:{},history:{},currentIdx:null,completedPerfect:new Set(),currentCat:'all'};
+  vCurrentIdx=null;
+  renderVers();
+}
 
-  /* =========================
-     Acciones con seleccionados
-     ========================= */
-  document.getElementById('addSelectedBtn').addEventListener('click', addSelectedToQueue);
-  document.getElementById('practiceSelectedBtn').addEventListener('click', practiceSelectedNow);
+/* ===================================================
+   SELECTOR — ahora inline como tercera pestaña
+   =================================================== */
+let selSet=new Set();
 
-  function addSelectedToQueue(){
-    const arr = Array.from(selectedSet);
-    if(arr.length === 0){ alert('No hay versículos seleccionados.'); return; }
-    let added = 0;
-    arr.forEach(idx=>{
-      if(!queue.includes(idx) && !errorsQueue.includes(idx)){
-        queue.push(idx); added++;
+function renderSelTab(){
+  const container=document.getElementById('tab-elige');
+  if(!container)return;
+  const selCount=selSet.size;
+  container.innerHTML=`
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+      <input class="search-in" id="sel-search" placeholder="Buscar por referencia, texto o categoría…" oninput="renderSelList()" style="flex:1;min-width:180px;margin:0"/>
+      <button class="btn btn-sm" onclick="selAll()">Sel. todo</button>
+      <button class="btn btn-sm" onclick="selNone()">Limpiar</button>
+    </div>
+    <div id="sel-list" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg4)"></div>
+    <div class="cat-start-row" style="margin-top:10px;${selCount?'':'opacity:.45;pointer-events:none'}">
+      <button class="btn primary" onclick="practiceSel()">▶ Practicar seleccionados</button>
+      <span style="font-size:0.78rem;color:var(--text3)">${selCount?selCount+' versículo'+( selCount!==1?'s':'')+' elegido'+(selCount!==1?'s':''):'Ningún versículo elegido aún'}</span>
+    </div>`;
+  renderSelList();
+}
+
+function renderSelList(){
+  const q=((document.getElementById('sel-search')||{}).value||'').toLowerCase().trim();
+  const list=document.getElementById('sel-list');if(!list)return;
+  list.innerHTML='';
+  VERSES.forEach((v,idx)=>{
+    const txt=(v.ref+' '+v.text+' '+(v.cats||[]).join(' ')).toLowerCase();
+    if(q&&!txt.includes(q))return;
+    const cats=(v.cats||[]).map(c=>`<span class="verse-cat">${c}</span>`).join('');
+    const row=document.createElement('div');
+    row.className='verse-row-sel';
+    row.style.cssText='cursor:pointer';
+    row.innerHTML=`
+      <input type="checkbox" class="sel-cb" data-idx="${idx}" ${selSet.has(idx)?'checked':''}/>
+      <div class="vrs-ref2">${v.ref} ${cats}</div>
+      <div class="vrs-txt2">${v.text.slice(0,90)}${v.text.length>90?'…':''}</div>
+      <div class="sel-actions2">
+        <button class="btn btn-sm" title="Practicar solo este" onclick="practiceSingle(${idx})">▶</button>
+      </div>`;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('.sel-cb').forEach(cb=>{
+    cb.onchange=()=>{
+      const i=parseInt(cb.dataset.idx);
+      if(cb.checked)selSet.add(i);else selSet.delete(i);
+      // actualizar contador sin re-render completo
+      const row=document.getElementById('tab-elige');
+      if(row){
+        const cnt=row.querySelector('.cat-start-row span');
+        const btn=row.querySelector('.cat-start-row');
+        const n=selSet.size;
+        if(cnt)cnt.textContent=n?n+' versículo'+(n!==1?'s':'')+' elegido'+(n!==1?'s':''):'Ningún versículo elegido aún';
+        if(btn){btn.style.opacity=n?'1':'0.45';btn.style.pointerEvents=n?'auto':'none';}
       }
+    };
+  });
+}
+
+function selAll(){selSet=new Set(VERSES.map((_,i)=>i));renderSelTab();}
+function selNone(){selSet=new Set();renderSelTab();}
+
+function practiceSel(){
+  if(!selSet.size)return;
+  const arr=[...selSet];
+  vState.queue=[...arr];
+  vState.errorsQ=[];
+  vState.currentCat='custom';
+  saveVState();
+  vGoal=Math.max(1,parseInt((document.getElementById('v-goal')||{}).value||5));
+  vSRS=(document.getElementById('v-srs')||{}).checked!==false;
+  vTimer=!!((document.getElementById('v-timer')||{}).checked);
+  vMode=(document.getElementById('v-mode')||{}).value||'normal';
+  document.getElementById('v-session').style.display='block';
+  markActivityToday();
+  renderCard(getNext());updateQInfo();
+  document.getElementById('v-session').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function practiceSingle(idx){
+  vState.queue=[idx,...vState.queue.filter(x=>x!==idx)];
+  vState.errorsQ=vState.errorsQ.filter(x=>x!==idx);
+  vState.currentCat='custom';
+  saveVState();
+  document.getElementById('v-session').style.display='block';
+  renderCard(getNext());updateQInfo();
+  document.getElementById('v-session').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* ===================================================
+   EVALUADOR — estado
+   =================================================== */
+let qPregs=[],qIdx=0,qAciertos=0,qErrores=[],qRespondido=false,qTotal=0;
+
+function renderEval(){
+  const el=document.getElementById('tab-eval');
+  el.innerHTML=`
+  ${renderStreak()}
+  <div class="card">
+    <div class="section-title">Selecciona una categoría</div>
+    <div class="cat-grid">
+      <div class="cat-card" onclick="qSelectCat('soy')"><div class="cat-icon">🧍</div><div class="cat-name">¿Quién soy?</div><div class="cat-count">${QUIZ_DATA.soy.length} preguntas</div></div>
+      <div class="cat-card" onclick="qSelectCat('dijo')"><div class="cat-icon">💬</div><div class="cat-name">¿Quién dijo?</div><div class="cat-count">${QUIZ_DATA.dijo.length} preguntas</div></div>
+      <div class="cat-card" onclick="qSelectCat('generales')"><div class="cat-icon">📚</div><div class="cat-name">Generales</div><div class="cat-count">${QUIZ_DATA.generales.length} preguntas</div></div>
+      <div class="cat-card" onclick="qSelectCat('libros')"><div class="cat-icon">📖</div><div class="cat-name">Libros de la Biblia</div><div class="cat-count">${LIBROS.length*2} preguntas</div></div>
+      <div class="cat-card" onclick="qSelectCat('visiones')"><div class="cat-icon">✨</div><div class="cat-name">Visiones y Discipulado</div><div class="cat-count">${VISIONES.length+DISCIPULADO.length} temas</div></div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="btn primary" id="q-start-btn" onclick="qStart()" style="display:none">▶ Iniciar</button>
+    </div>
+  </div>
+  <div id="q-area"></div>`;
+}
+let qSelectedCat='';
+function qSelectCat(cat){
+  qSelectedCat=cat;
+  document.querySelectorAll('.cat-card').forEach(c=>c.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('q-start-btn').style.display='inline-block';
+}
+function qStart(){
+  if(!qSelectedCat)return;
+  qErrores=[];
+  if(qSelectedCat==='soy') qPregs=shuffle([...QUIZ_DATA.soy]).map(q=>({p:q.p,r:[q.r],s:'¿QUIÉN SOY?'}));
+  else if(qSelectedCat==='dijo') qPregs=shuffle([...QUIZ_DATA.dijo]).map(q=>({p:q.p,r:[q.r],s:'¿QUIÉN DIJO?'}));
+  else if(qSelectedCat==='generales') qPregs=shuffle([...QUIZ_DATA.generales]).map(q=>({p:q.p,r:[q.r],s:'GENERALES'}));
+  else if(qSelectedCat==='libros'){
+    qPregs=shuffle(LIBROS.map(lib=>{
+      return Math.random()<0.5
+        ?{p:`¿Cuántos capítulos tiene ${lib.n}?`,r:[String(lib.c)],s:'LIBROS'}
+        :{p:`¿Qué número de libro es ${lib.n}?`,r:[String(lib.o)],s:'LIBROS'};
+    }));
+  }else if(qSelectedCat==='visiones'){
+    const pool=[];
+    VISIONES.forEach(v=>{
+      pool.push({p:`VISIÓN ${v.y}: escribe el lema.`,r:[v.l],s:'VISIÓN'});
+      pool.push({p:`VISIÓN: Lema "${v.l}" — escribe el año.`,r:[String(v.y)],s:'VISIÓN'});
+      pool.push({p:`VISIÓN: Lema "${v.l}" — escribe la cita bíblica.`,r:[v.c],s:'VISIÓN'});
+      pool.push({p:`VISIÓN: Para la cita ${v.c}, escribe el lema.`,r:[v.l],s:'VISIÓN'});
     });
-    updateQueueInfo(); saveState();
-    alert(`${added} versículo(s) añadidos a la cola.`);
-  }
-
-  function practiceSelectedNow(){
-    const arr = Array.from(selectedSet);
-    if(arr.length === 0){ alert('No hay versículos seleccionados.'); return; }
-    arr.forEach(idx => { queue = queue.filter(x => x !== idx); errorsQueue = errorsQueue.filter(x => x !== idx); });
-    queue = arr.concat(queue);
-    saveState();
-    selectorModal.style.display='none'; document.getElementById('overlay').style.display='none';
-    document.getElementById('sessionArea').style.display='block';
-    const nextIdx = getNextIndex(); renderCard(nextIdx);
-  }
-
-  /* =========================
-     Vista rápida (modal)
-     ========================= */
-  const verseModal = document.getElementById('verseModal');
-  const verseModalRef = document.getElementById('verseModalRef');
-  const verseModalText = document.getElementById('verseModalText');
-  const verseAddBtn = document.getElementById('verseAddBtn');
-  const versePracticeNowBtn = document.getElementById('versePracticeNowBtn');
-  const verseDontKnowBtn = document.getElementById('verseDontKnowBtn');
-  const verseCloseBtn = document.getElementById('verseCloseBtn');
-
-  function openVerseModal(idx){
-    const v = verses[idx];
-    verseModalRef.textContent = v.ref;
-    verseModalText.textContent = v.text;
-    verseModal.style.display = 'block';
-    document.getElementById('overlay').style.display = 'block';
-    verseAddBtn.onclick = ()=>{ selectedSet.add(idx); renderSelectedSummary(); addSingleToQueue(idx); alert('Versículo añadido a la cola.'); };
-    versePracticeNowBtn.onclick = ()=>{ selectedSet.add(idx); renderSelectedSummary(); practiceSingleNow(idx); };
-    verseDontKnowBtn.onclick = ()=>{ selectedSet.add(idx); renderSelectedSummary(); scheduleRequeue(idx, {minAhead:2, maxAhead:6}); recordHistory(idx, 'error', null); recordDifficulty(idx, false); saveState(); alert('Versículo mostrado y programado para repetición.'); };
-    verseCloseBtn.onclick = ()=>{ verseModal.style.display='none'; document.getElementById('overlay').style.display='none'; };
-  }
-
-  function addSingleToQueue(idx){
-    if(!queue.includes(idx) && !errorsQueue.includes(idx)) queue.push(idx);
-    updateQueueInfo(); saveState();
-  }
-  function practiceSingleNow(idx){
-    queue = queue.filter(x => x !== idx);
-    errorsQueue = errorsQueue.filter(x => x !== idx);
-    queue.unshift(idx);
-    saveState();
-    selectorModal.style.display='none'; document.getElementById('overlay').style.display='none';
-    document.getElementById('sessionArea').style.display='block';
-    const nextIdx = getNextIndex(); renderCard(nextIdx);
-  }
-
-  document.getElementById('overlay').addEventListener('click', ()=>{
-    if(selectorModal.style.display === 'block') selectorModal.style.display='none';
-    if(verseModal.style.display === 'block') verseModal.style.display='none';
-    document.getElementById('overlay').style.display='none';
-  });
-
-  /* =========================
-     Cronómetro helpers
-     ========================= */
-  function startTimerUI(){
-    if(!document.getElementById('enableTimer').checked) return;
-    timerEnabled = true;
-    timerStart = Date.now();
-    const display = document.getElementById('timerStatus');
-    display.textContent = 'ON';
-    // no need for interval unless you want live display; we store elapsed on check
-  }
-  function stopTimerUI(){
-    timerEnabled = false;
-    const display = document.getElementById('timerStatus');
-    display.textContent = document.getElementById('enableTimer').checked ? 'ON' : 'OFF';
-    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
-    const elapsed = timerStart ? Math.round((Date.now() - timerStart)/1000) : null;
-    timerStart = null;
-    return elapsed;
-  }
-
-  document.getElementById('enableTimer').addEventListener('change', ()=>{
-    const on = document.getElementById('enableTimer').checked;
-    document.getElementById('timerStatus').textContent = on ? 'ON' : 'OFF';
-  });
-
-  /* =========================
-     Flujo de práctica y UI (soporta modos)
-     ========================= */
-  function renderCard(idx){
-    const container = document.getElementById('cardContainer');
-    container.innerHTML = '';
-    if(idx===null || idx===undefined){
-      container.innerHTML = '<div class="small">No hay más versículos para la selección actual.</div>';
-      document.getElementById('checkBtn').style.display='none';
-      document.getElementById('skipBtn').style.display='none';
-      document.getElementById('dontKnowBtn').style.display='none';
-      return;
-    }
-    currentIndex = idx;
-    const v = verses[idx];
-    const cats = (v.categories || []).map(c => `<span class="category-badge">${c}</span>`).join(' ');
-    const mode = document.getElementById('studyMode').value || 'normal';
-    const card = document.createElement('div');
-    card.className='verse-card';
-    if(mode === 'normal'){
-      card.innerHTML = `<div><strong>Referencia:</strong> ${v.ref} ${cats}</div>
-        <div class="small" style="margin-top:6px">Escribe el versículo (ignora acentos, puntuación y mayúsculas)</div>
-        <textarea id="answerArea" placeholder="Escribe aquí el versículo"></textarea>
-        <div id="resultArea" style="margin-top:8px"></div>`;
-    } else {
-      card.innerHTML = `<div><strong>Texto del versículo:</strong> <div style="margin-top:6px">${v.text}</div> ${cats}</div>
-        <div class="small" style="margin-top:6px">Escribe la referencia (ej: Juan 3:16)</div>
-        <input id="answerArea" type="text" placeholder="Escribe aquí la referencia" />
-        <div id="resultArea" style="margin-top:8px"></div>`;
-    }
-    container.appendChild(card);
-    document.getElementById('checkBtn').style.display='inline-block';
-    document.getElementById('skipBtn').style.display='inline-block';
-    document.getElementById('dontKnowBtn').style.display='inline-block';
-    document.getElementById('nextBtn').style.display='none';
-    // iniciar cronómetro si está activado
-    if(document.getElementById('enableTimer').checked) startTimerUI(); else timerStart = null;
-    saveState();
-  }
-
-  function showDiffResultText(res){
-    const ra = document.getElementById('resultArea'); ra.innerHTML = '';
-    const expDiv = document.createElement('div'); expDiv.innerHTML = '<strong>Comparación palabra a palabra:</strong>'; ra.appendChild(expDiv);
-    const line = document.createElement('div');
-    res.diffs.forEach(d=>{
-      const span = document.createElement('span'); span.className='diff-word';
-      if(d.type==='ok'){ span.classList.add('right'); span.textContent = d.expected; }
-      else if(d.type==='wrong'){ span.classList.add('wrong'); span.innerHTML = `<span class="diff-expected">${d.expected}</span> ≠ <span class="diff-missing">${d.actual}</span>`; }
-      else if(d.type==='missing'){ span.classList.add('wrong'); span.innerHTML = `<span class="diff-expected">${d.expected}</span> <span class="diff-missing">[faltó]</span>`; }
-      else if(d.type==='extra'){ span.classList.add('wrong'); span.innerHTML = `<span class="diff-missing">${d.actual}</span> <span class="diff-expected">[extra]</span>`; }
-      line.appendChild(span);
+    DISCIPULADO.forEach(d=>{
+      pool.push({p:`DISCIPULADO #${d.o}: escribe la lección.`,r:[d.n],s:'DISCIPULADO'});
+      pool.push({p:`DISCIPULADO: Lección "${d.n}" — escribe la cita bíblica.`,r:[d.c],s:'DISCIPULADO'});
+      pool.push({p:`DISCIPULADO: Para la cita ${d.c}, escribe la lección.`,r:[d.n],s:'DISCIPULADO'});
     });
-    ra.appendChild(line);
-    const score = Math.round(res.score*100);
-    const summary = document.createElement('div'); summary.className='small'; summary.innerHTML = `Precisión: <strong>${score}%</strong>`; ra.appendChild(summary);
+    shuffle(pool);qPregs=pool.slice(0,30);
   }
+  if(!qPregs.length){alert('No hay preguntas.');return;}
+  qIdx=0;qAciertos=0;qRespondido=false;qTotal=qPregs.length;
+  markActivityToday();
+  qRenderSession();
+  qShow();
+}
+function qRenderSession(){
+  document.getElementById('q-area').innerHTML=`
+  <div class="card" style="margin-top:12px">
+    <div class="quiz-progress"><div class="quiz-progress-fill" id="q-prog" style="width:0%"></div></div>
+    <div class="quiz-num" id="q-num"></div>
+    <div class="quiz-source" id="q-source"></div>
+    <div class="quiz-q" id="q-question"></div>
+    <input class="answer-in" id="q-ans" placeholder="Escribe tu respuesta…"/>
+    <div id="q-feedback" style="margin-top:8px"></div>
+    <div class="action-row" style="margin-top:10px">
+      <button class="btn primary" onclick="qVerify()">Verificar</button>
+      <button class="btn btn-sm" onclick="qNext()">Siguiente →</button>
+    </div>
+  </div>`;
+  document.getElementById('q-ans').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();qVerify();}});
+}
+function qShow(){
+  qRespondido=false;
+  const fb=document.getElementById('q-feedback');
+  const inp=document.getElementById('q-ans');
+  if(!fb||!inp)return;
+  fb.innerHTML='';inp.value='';inp.disabled=false;
+  document.getElementById('q-num').textContent=`Pregunta ${qIdx+1} de ${qPregs.length}`;
+  document.getElementById('q-source').textContent=qPregs[qIdx].s||'';
+  document.getElementById('q-question').textContent=qPregs[qIdx].p;
+  document.getElementById('q-prog').style.width=Math.round((qIdx/qTotal)*100)+'%';
+  inp.focus();
+}
+function qVerify(){
+  if(qRespondido)return;
+  const inp=document.getElementById('q-ans');if(!inp)return;
+  const fb=document.getElementById('q-feedback');
+  inp.disabled=true;qRespondido=true;
+  const ok=compareQ(inp.value,qPregs[qIdx].r);
+  addQStats(1);
+  if(ok){
+    qAciertos++;
+    fb.innerHTML=`<span class="feedback-bar correct">✓ Correcto</span>`;
+  }else{
+    qErrores.push({...qPregs[qIdx]});
+    fb.innerHTML=`<span class="feedback-bar wrong">✗ Incorrecto — Respuesta: <strong style="color:var(--gold)">${qPregs[qIdx].r.join(' / ')}</strong></span>`;
+  }
+}
+function qNext(){
+  if(!qRespondido){qVerify();return;}
+  qIdx++;
+  if(qIdx>=qPregs.length)qFinalizar();
+  else qShow();
+}
+function qFinalizar(){
+  const pct=Math.round((qAciertos/qTotal)*100);
+  let color=pct>=80?'var(--green)':pct>=50?'var(--gold)':'var(--red)';
+  const errHtml=qErrores.length===0?'<p style="color:var(--green);text-align:center">¡Sin errores! 🏆</p>':
+    qErrores.map((e,i)=>`<div class="error-item-q">
+      <span class="error-source">${e.s}</span>
+      <span class="error-q-text">${i+1}. ${e.p}</span>
+      <span class="error-ans">${e.r.join(' / ')}</span>
+    </div>`).join('');
+  document.getElementById('q-area').innerHTML=`
+  <div class="card" style="margin-top:12px;text-align:center">
+    <div class="result-circle" style="border-color:${color};color:${color}">${pct}%</div>
+    <div style="font-size:1.1rem;font-weight:600;margin-bottom:4px">${qAciertos} / ${qTotal} correctas</div>
+    <div style="font-size:.85rem;color:var(--text2);margin-bottom:16px">${qErrores.length} errores</div>
+    ${qErrores.length?`<div style="text-align:left;margin-bottom:12px"><div class="section-title">Preguntas incorrectas</div>${errHtml}</div>`:''}
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="btn primary" onclick="renderEval()">← Menú</button>
+      ${qErrores.length?`<button class="btn btn-sm" onclick="qPracticeErrors()">Practicar errores (${qErrores.length})</button>`:''}
+    </div>
+  </div>`;
+}
+function qPracticeErrors(){
+  if(!qErrores.length)return;
+  qPregs=[...qErrores];qErrores=[];
+  qIdx=0;qAciertos=0;qRespondido=false;qTotal=qPregs.length;
+  qRenderSession();qShow();
+}
 
-  document.getElementById('checkBtn').addEventListener('click', ()=>{
-    const ans = (document.getElementById('answerArea').value || '').trim();
-    if(currentIndex == null){ alert('No hay versículo activo.'); return; }
-    const v = verses[currentIndex];
-    const mode = document.getElementById('studyMode').value || 'normal';
-    const elapsed = timerStart ? Math.round((Date.now() - timerStart)/1000) : null;
-    // detener timer
-    const timeRecorded = stopTimerUI();
-    if(mode === 'normal'){
-      const res = compareVersesText(v.text, ans);
-      showDiffResultText(res);
-      if(res.allOk){
-        practiced.add(currentIndex);
-        recordDifficulty(currentIndex, true);
-        recordHistory(currentIndex, 'correct', timeRecorded);
-        completedPerfect.add(verses[currentIndex].ref);
-        updateCompletedList();
-        document.getElementById('feedback').textContent = `Correcto — tiempo: ${timeRecorded!==null?timeRecorded+'s':'--'}`; document.getElementById('feedback').className='small right';
-        document.getElementById('nextBtn').style.display='inline-block'; document.getElementById('checkBtn').style.display='none'; document.getElementById('skipBtn').style.display='none'; document.getElementById('dontKnowBtn').style.display='none';
-      } else {
-        scheduleRequeue(currentIndex, {minAhead:2, maxAhead:6});
-        recordDifficulty(currentIndex, false);
-        recordHistory(currentIndex, 'error', timeRecorded);
-        document.getElementById('feedback').textContent = `Hay errores. Se repetirá más adelante — tiempo: ${timeRecorded!==null?timeRecorded+'s':'--'}`; document.getElementById('feedback').className='small wrong';
-        document.getElementById('nextBtn').style.display='inline-block';
-      }
-    } else { // modo inverso: comparar referencias
-      const ok = compareRefs(v.ref, ans);
-      const ra = document.getElementById('resultArea'); ra.innerHTML = '';
-      if(ok){
-        practiced.add(currentIndex);
-        recordDifficulty(currentIndex, true);
-        recordHistory(currentIndex, 'correct', timeRecorded);
-        completedPerfect.add(verses[currentIndex].ref);
-        updateCompletedList();
-        ra.innerHTML = `<div class="small right">Referencia correcta: <strong>${v.ref}</strong></div>`;
-        document.getElementById('feedback').textContent = `Correcto — tiempo: ${timeRecorded!==null?timeRecorded+'s':'--'}`; document.getElementById('feedback').className='small right';
-        document.getElementById('nextBtn').style.display='inline-block'; document.getElementById('checkBtn').style.display='none'; document.getElementById('skipBtn').style.display='none'; document.getElementById('dontKnowBtn').style.display='none';
-      } else {
-        scheduleRequeue(currentIndex, {minAhead:2, maxAhead:6});
-        recordDifficulty(currentIndex, false);
-        recordHistory(currentIndex, 'error', timeRecorded);
-        ra.innerHTML = `<div class="small wrong">Referencia incorrecta. Esperada: <strong>${v.ref}</strong></div>`;
-        document.getElementById('feedback').textContent = `Incorrecto — tiempo: ${timeRecorded!==null?timeRecorded+'s':'--'}`; document.getElementById('feedback').className='small wrong';
-        document.getElementById('nextBtn').style.display='inline-block';
-      }
-    }
-    updateQueueInfo(); saveState();
+/* ===================================================
+   HOME
+   =================================================== */
+function renderHome(){
+  loadVState();
+  const sd=loadStreak();
+  const vDia=VERSES[Math.floor(new Date().getDate()*7)%VERSES.length];
+  document.getElementById('tab-home').innerHTML=`
+  ${renderStreak()}
+  <div class="home-hero">
+    <div class="home-title">Estudio Bíblico</div>
+    <div class="home-sub">Valera Purificada 1602 · Revisión 2024</div>
+  </div>
+  <div class="module-grid">
+    <div class="module-card" onclick="showTab('vers')">
+      <div class="module-icon">📝</div>
+      <div class="module-name">Versículos de memoria</div>
+      <div class="module-desc">SRS · Modo inverso · Cronómetro · ${VERSES.length} versículos</div>
+    </div>
+    <div class="module-card" onclick="showTab('eval')">
+      <div class="module-icon">❓</div>
+      <div class="module-name">Evaluador bíblico</div>
+      <div class="module-desc">5 categorías · ¿Quién soy? · Libros · Visiones</div>
+    </div>
+  </div>
+  <div class="versiculo-dia">
+    <div class="vd-label">Versículo del día</div>
+    <div class="vd-text">"${vDia.text}"</div>
+    <div class="vd-ref">— ${vDia.ref}</div>
+  </div>`;
+}
+
+/* ===================================================
+   NAVEGACIÓN
+   =================================================== */
+let currentTab='home';
+function showTab(tab){
+  ['home','vers','eval'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===tab?'block':'none';
+    document.getElementById('tb-'+t).classList.toggle('active',t===tab);
   });
+  currentTab=tab;
+  if(tab==='home')renderHome();
+  else if(tab==='vers')renderVers();
+  else if(tab==='eval')renderEval();
+}
 
-  document.getElementById('dontKnowBtn').addEventListener('click', ()=>{
-    const idx = currentIndex;
-    if(idx == null) return;
-    openVerseModal(idx);
-    scheduleRequeue(idx, {minAhead:2, maxAhead:6});
-    recordHistory(idx, 'error', stopTimerUI());
-    recordDifficulty(idx, false);
-    updateQueueInfo(); saveState();
-  });
-
-  document.getElementById('skipBtn').addEventListener('click', ()=>{
-    if(currentIndex != null){
-      scheduleRequeue(currentIndex, {minAhead:3, maxAhead:8});
-      recordHistory(currentIndex, 'error', stopTimerUI()); recordDifficulty(currentIndex, false);
-    }
-    document.getElementById('feedback').textContent = 'Saltado. Se repetirá más adelante.'; document.getElementById('feedback').className='small wrong';
-    saveState(); nextFlow();
-  });
-
-  document.getElementById('nextBtn').addEventListener('click', nextFlow);
-  function nextFlow(){ const nextIdx = getNextIndex(); if(nextIdx===null) renderCard(null); else renderCard(nextIdx); updateQueueInfo(); saveState(); }
-
-  /* =========================
-     Botón único: Reiniciar todo
-     ========================= */
-  document.getElementById('resetAll').addEventListener('click', ()=>{
-    if(!confirm('¿Deseas reiniciar todo el progreso (practiced, difficulty, historial, colas)?')) return;
-    localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(DATE_KEY);
-    queue = []; errorsQueue = []; practiced = new Set(); difficulty = {}; history = {}; currentIndex = null; completedPerfect.clear(); selectedSet.clear();
-    document.getElementById('sessionArea').style.display='none';
-    renderSelectedSummary();
-    updateCompletedList();
-    updateQueueInfo();
-    alert('Todo el progreso ha sido reiniciado.');
-  });
-
-  /* =========================
-     Cambio de categoría: aplica filtro inmediatamente
-     ========================= */
-  document.getElementById('categoryFilter').addEventListener('change', onCategoryChange);
-  function onCategoryChange(){
-    const sel = document.getElementById('categoryFilter').value;
-    currentCategory = sel;
-    queue = [];
-    errorsQueue = errorsQueue.filter(i => matchesCurrentCategory(i));
-    let available = verses.map((v,i)=>i).filter(i => !practiced.has(i) && matchesCurrentCategory(i));
-    if(available.length === 0){
-      practiced = new Set();
-      available = verses.map((v,i)=>i).filter(i => matchesCurrentCategory(i));
-    }
-    for(let i=available.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [available[i],available[j]]=[available[j],available[i]]; }
-    const goal = Math.max(1, parseInt(document.getElementById('dailyGoal').value||5));
-    queue = available.slice(0, Math.min(goal, available.length));
-    updateQueueInfo(); saveState();
-    if(document.getElementById('sessionArea').style.display !== 'none'){
-      const nextIdx = getNextIndex(); renderCard(nextIdx);
-    }
-    // no alert para UX más fluida
-  }
-
-  /* =========================
-     Completados 100%
-     ========================= */
-  function updateCompletedList(){
-    const container = document.getElementById('completedItems');
-    const wrapper = document.getElementById('completedList');
-    const arr = Array.from(completedPerfect);
-    if(arr.length === 0){ wrapper.style.display='none'; return; }
-    wrapper.style.display='block';
-    container.innerHTML = arr.map(r => `<div class="small">${r}</div>`).join('');
-  }
-
-  /* =========================
-     Enlace robusto del botón Start
-     ========================= */
-  function onStartClicked(){
-    document.getElementById('sessionArea').style.display='block';
-    prepareDailyQueue(true);
-    const nextIdx = getNextIndex();
-    renderCard(nextIdx);
-  }
-
-  function bindStartButtonOnce(){
-    const btn = document.getElementById('startBtn');
-    if(!btn) return false;
-    btn.removeEventListener('click', onStartClicked);
-    btn.addEventListener('click', onStartClicked);
-    btn.onclick = onStartClicked;
-    console.log('DIAG: startBtn enlazado correctamente');
-    const diag = document.getElementById('__startDiag');
-    if(!diag){
-      const d = document.createElement('div');
-      d.id='__startDiag';
-      d.style.position='fixed';
-      d.style.right='8px';
-      d.style.top='8px';
-      d.style.zIndex=99998;
-      d.style.background='rgba(0,128,0,0.08)';
-      d.style.color='#064';
-      d.style.padding='6px 8px';
-      d.style.borderRadius='6px';
-      d.style.fontSize='12px';
-      d.textContent = 'startBtn enlazado';
-      document.body.appendChild(d);
-      setTimeout(()=>{ if(d) d.remove(); }, 2500);
-    }
-    return true;
-  }
-
-  bindStartButtonOnce();
-  setTimeout(()=>{ bindStartButtonOnce(); }, 500);
-  setTimeout(()=>{ bindStartButtonOnce(); }, 2000);
-
-  /* =========================
-     Inicialización final
-     ========================= */
-  loadState();
-  document.getElementById('categoryFilter').value = currentCategory || 'all';
-  queue = queue.filter(i => matchesCurrentCategory(i));
-  errorsQueue = errorsQueue.filter(i => matchesCurrentCategory(i));
-  updateQueueInfo();
-  if(queue.length>0 || errorsQueue.length>0 || practiced.size>0){
-    document.getElementById('sessionArea').style.display='block';
-  }
-  renderSelectedSummary();
-  updateCompletedList();
-
-}); // DOMContentLoaded end
+/* ===================================================
+   INIT
+   =================================================== */
+loadVState();
+renderHome();
 </script>
 </body>
 </html>
