@@ -1523,12 +1523,11 @@ function showTab(tab){
 }
 
 /* ===================================================
-   MICRÓFONO — Web Speech API (compatible móvil + debug)
+   MICRÓFONO — Web Speech API (una sesión por toque)
    =================================================== */
 let micRecog=null;
 let micActive=false;
 let micFinalText='';
-let micRestarting=false;
 let micSessionCount=0;
 
 const SpeechRec=window.SpeechRecognition||window.webkitSpeechRecognition||null;
@@ -1549,7 +1548,7 @@ function micLog(msg){
   const el=document.getElementById('mic-debug');
   if(!el)return;
   const t=new Date().toLocaleTimeString('es',{hour12:false});
-  el.textContent='['+t+'] '+msg+'\n'+el.textContent.slice(0,400);
+  el.textContent='['+t+'] '+msg+'\n'+el.textContent.slice(0,600);
 }
 
 function toggleMic(){
@@ -1564,113 +1563,131 @@ function toggleMic(){
 
 function startMic(){
   if(!micSupported()||micActive)return;
+
+  // Destruir cualquier instancia previa completamente
+  if(micRecog){try{micRecog.abort();}catch(e){}micRecog=null;}
+
   const {btn,label,status,interim,ta}=getMicEls();
   if(!btn)return;
 
   micFinalText=(ta?ta.value:'').trimEnd();
   micActive=true;
-  micRestarting=false;
-  micSessionCount=0;
+  micSessionCount++;
 
   btn.classList.add('listening');
-  if(label)label.textContent='Detener';
-  if(status)status.textContent='🎙 Iniciando…';
+  if(label)label.textContent='🛑 Detener';
+  if(status)status.textContent='🎙 Escuchando…';
   if(interim){interim.style.display='block';interim.textContent='';}
+  document.getElementById('mic-debug-wrap').style.display='block';
 
-  // Mostrar panel de debug
-  const dbgWrap=document.getElementById('mic-debug-wrap');
-  if(dbgWrap)dbgWrap.style.display='block';
+  micLog('=== sesión #'+micSessionCount+' ===');
 
-  micLog('startMic() — SpeechRec='+SpeechRec.name);
-  launchSession();
-}
+  // Esperar 100ms antes de crear y arrancar — da tiempo al contexto de audio
+  setTimeout(()=>{
+    if(!micActive)return;
 
-function launchSession(){
-  if(!micActive)return;
-  micSessionCount++;
-  micLog('launchSession #'+micSessionCount);
-
-  micRecog=new SpeechRec();
-  micRecog.lang='es-MX';
-  micRecog.continuous=false;
-  micRecog.interimResults=true;
-  micRecog.maxAlternatives=1;
-
-  let gotResult=false;
-  let gotAbort=false;
-
-  micRecog.onstart=()=>{
-    micLog('onstart OK');
-    const {status}=getMicEls();
-    if(status)status.textContent='🎙 Escuchando… habla ahora';
-  };
-
-  micRecog.onaudiostart=()=>micLog('onaudiostart');
-  micRecog.onsoundstart=()=>micLog('onsoundstart — sonido ✓');
-  micRecog.onspeechstart=()=>micLog('onspeechstart — VOZ ✓');
-  micRecog.onspeechend=()=>micLog('onspeechend');
-  micRecog.onaudioend=()=>micLog('onaudioend');
-  micRecog.onnomatch=()=>micLog('onnomatch');
-
-  micRecog.onresult=(e)=>{
-    gotResult=true;
-    micLog('onresult × '+e.results.length);
-    const {interim,ta}=getMicEls();
-    let interimStr='', newFinal='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=e.results[i][0].transcript;
-      micLog((e.results[i].isFinal?'FINAL':'interim')+': "'+t.slice(0,50)+'"');
-      if(e.results[i].isFinal) newFinal+=(newFinal?' ':'')+t.trim();
-      else interimStr+=t;
+    try{
+      micRecog=new SpeechRec();
+    }catch(e){
+      micLog('ERROR creando SpeechRec: '+e.message);
+      stopMic(true);return;
     }
-    if(interim)interim.textContent=interimStr||'';
-    if(newFinal){
-      const sep=(micFinalText&&!micFinalText.endsWith(' '))?' ':'';
-      micFinalText+=sep+newFinal;
-      if(ta){ta.value=micFinalText;ta.scrollTop=ta.scrollHeight;}
-      if(interim)interim.textContent='';
-    }
-  };
 
-  micRecog.onerror=(e)=>{
-    micLog('onerror: '+e.error);
-    if(e.error==='aborted'){gotAbort=true;return;}
-    if(e.error==='no-speech'){
-      // normal en móvil — reiniciar con pausa
-      if(micActive&&!micRestarting){
-        micRestarting=true;
-        setTimeout(()=>{micRestarting=false;if(micActive)launchSession();},800);
-      }
-      return;
-    }
-    const msgs={'not-allowed':'Permiso denegado','network':'Sin conexión — necesita internet','audio-capture':'Micrófono no encontrado'};
-    const {status}=getMicEls();
-    if(status)status.textContent=msgs[e.error]||'Error: '+e.error;
-    stopMic(true);
-  };
+    micRecog.lang='es-US';   // es-US: más amplio soporte en Chrome Android que es-MX
+    micRecog.continuous=false;
+    micRecog.interimResults=true;
+    micRecog.maxAlternatives=1;
 
-  micRecog.onend=()=>{
-    micLog('onend micActive='+micActive+' gotResult='+gotResult+' gotAbort='+gotAbort);
-    if(!micActive||micRestarting||gotAbort)return;
-    micRestarting=true;
-    // Si hubo resultado → reiniciar rápido; si no → esperar más (Chrome inicializándose)
-    const delay=gotResult?350:1000;
-    setTimeout(()=>{micRestarting=false;if(micActive)launchSession();},delay);
-  };
-
-  try{
-    micRecog.start();
-    micLog('start() OK');
-  }catch(err){
-    micLog('start() ERR: '+err.name);
-    if(err.name==='InvalidStateError'){
-      setTimeout(()=>{if(micActive)launchSession();},700);
-    }else{
+    micRecog.onstart  =()=>micLog('onstart ✓');
+    micRecog.onaudiostart=()=>micLog('onaudiostart ✓');
+    micRecog.onsoundstart=()=>micLog('onsoundstart ✓');
+    micRecog.onspeechstart=()=>{
+      micLog('onspeechstart — VOZ DETECTADA ✓');
       const {status}=getMicEls();
-      if(status)status.textContent='Error: '+err.message;
+      if(status)status.textContent='🎙 Reconociendo…';
+    };
+    micRecog.onspeechend=()=>micLog('onspeechend');
+    micRecog.onaudioend=()=>micLog('onaudioend');
+    micRecog.onnomatch=()=>micLog('onnomatch');
+
+    micRecog.onresult=(e)=>{
+      micLog('onresult ✓ ('+e.results.length+' results)');
+      const {interim,ta}=getMicEls();
+      let interimStr='', newFinal='';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const t=e.results[i][0].transcript;
+        micLog((e.results[i].isFinal?'FINAL':'interim')+': "'+t.slice(0,60)+'"');
+        if(e.results[i].isFinal) newFinal+=(newFinal?' ':'')+t.trim();
+        else interimStr+=t;
+      }
+      if(interim)interim.textContent=interimStr;
+      if(newFinal){
+        const sep=(micFinalText&&!micFinalText.endsWith(' '))?' ':'';
+        micFinalText+=sep+newFinal;
+        if(ta){ta.value=micFinalText;ta.scrollTop=ta.scrollHeight;}
+        if(interim)interim.textContent='';
+      }
+    };
+
+    micRecog.onerror=(e)=>{
+      micLog('onerror: '+e.error);
+      const msgs={
+        'not-allowed':'Permiso denegado — ve a Ajustes › Chrome › Micrófono',
+        'network':'Sin conexión a internet',
+        'audio-capture':'Micrófono no disponible',
+        'no-speech':'No se detectó voz',
+        'aborted':'Sesión interrumpida',
+      };
+      const {status}=getMicEls();
+      if(status)status.textContent=msgs[e.error]||'Error: '+e.error;
+      micActive=false; // marcar inactivo pero no llamar stopMic para no buclar
+    };
+
+    micRecog.onend=()=>{
+      micLog('onend — micActive='+micActive);
+      // UNA sola sesión por toque — no reiniciar automáticamente
+      const wasActive=micActive;
+      micActive=false;
+      const {btn,label,interim,ta,status}=getMicEls();
+      if(btn)btn.classList.remove('listening');
+      if(label)label.textContent='🎙 Dictar';
+      if(interim){interim.style.display='none';interim.textContent='';}
+      if(wasActive&&status){
+        const words=ta&&ta.value.trim()?ta.value.trim().split(/\s+/).length:0;
+        if(words>0)status.textContent='✓ '+words+' palabras — revisa y presiona Comprobar';
+        else status.textContent='No se captó texto — vuelve a presionar Dictar y habla';
+      }
+      micRecog=null;
+    };
+
+    try{
+      micRecog.start();
+      micLog('start() llamado');
+    }catch(err){
+      micLog('start() ERROR: '+err.name+': '+err.message);
+      const {status}=getMicEls();
+      if(status)status.textContent='No se pudo iniciar: '+err.message;
       stopMic(true);
     }
+  },100);
+}
+
+function stopMic(fromError=false){
+  micActive=false;
+  if(micRecog){
+    try{micRecog.abort();}catch(e){}
+    micRecog=null;
   }
+  const {btn,label,status,interim,ta}=getMicEls();
+  if(!btn)return;
+  btn.classList.remove('listening');
+  if(label)label.textContent='🎙 Dictar';
+  if(interim){interim.style.display='none';interim.textContent='';}
+  if(!fromError&&status){
+    const words=ta&&ta.value.trim()?ta.value.trim().split(/\s+/).length:0;
+    status.textContent=words>0?'✓ '+words+' palabras — revisa y presiona Comprobar':'Presiona Dictar, habla una frase, presiona Dictar de nuevo para continuar';
+  }
+  micLog('stopMic()');
 }
 
 function stopMic(fromError=false){
