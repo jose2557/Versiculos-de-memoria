@@ -1590,12 +1590,14 @@ function launchSession(){
   micSessionCount++;
   micLog('launchSession #'+micSessionCount);
 
-  // Crear instancia nueva cada sesión — reutilizar la misma da problemas en Android
   micRecog=new SpeechRec();
-  micRecog.lang='es-MX';       // es-MX más universal que es-PA en Android
+  micRecog.lang='es-MX';
   micRecog.continuous=false;
   micRecog.interimResults=true;
   micRecog.maxAlternatives=1;
+
+  let gotResult=false;
+  let gotAbort=false;
 
   micRecog.onstart=()=>{
     micLog('onstart OK');
@@ -1603,80 +1605,69 @@ function launchSession(){
     if(status)status.textContent='🎙 Escuchando… habla ahora';
   };
 
-  micRecog.onaudiostart=()=>micLog('onaudiostart — audio capturado');
-  micRecog.onsoundstart=()=>micLog('onsoundstart — sonido detectado');
-  micRecog.onspeechstart=()=>micLog('onspeechstart — voz detectada ✓');
-  micRecog.onspeechend=()=>micLog('onspeechend — voz terminó');
-  micRecog.onsoundend=()=>micLog('onsoundend');
+  micRecog.onaudiostart=()=>micLog('onaudiostart');
+  micRecog.onsoundstart=()=>micLog('onsoundstart — sonido ✓');
+  micRecog.onspeechstart=()=>micLog('onspeechstart — VOZ ✓');
+  micRecog.onspeechend=()=>micLog('onspeechend');
   micRecog.onaudioend=()=>micLog('onaudioend');
+  micRecog.onnomatch=()=>micLog('onnomatch');
 
   micRecog.onresult=(e)=>{
-    micLog('onresult — results:'+e.results.length);
+    gotResult=true;
+    micLog('onresult × '+e.results.length);
     const {interim,ta}=getMicEls();
-    let interimStr='';
-    let newFinal='';
+    let interimStr='', newFinal='';
     for(let i=e.resultIndex;i<e.results.length;i++){
       const t=e.results[i][0].transcript;
-      micLog((e.results[i].isFinal?'FINAL':'interim')+': "'+t.slice(0,40)+'"');
-      if(e.results[i].isFinal){
-        newFinal+=(newFinal?' ':'')+t.trim();
-      }else{
-        interimStr+=t;
-      }
+      micLog((e.results[i].isFinal?'FINAL':'interim')+': "'+t.slice(0,50)+'"');
+      if(e.results[i].isFinal) newFinal+=(newFinal?' ':'')+t.trim();
+      else interimStr+=t;
     }
     if(interim)interim.textContent=interimStr||'';
     if(newFinal){
       const sep=(micFinalText&&!micFinalText.endsWith(' '))?' ':'';
-      micFinalText=micFinalText+sep+newFinal;
+      micFinalText+=sep+newFinal;
       if(ta){ta.value=micFinalText;ta.scrollTop=ta.scrollHeight;}
       if(interim)interim.textContent='';
     }
   };
 
-  micRecog.onnomatch=()=>micLog('onnomatch — no reconoció nada');
-
   micRecog.onerror=(e)=>{
     micLog('onerror: '+e.error);
-    if(e.error==='aborted')return;
+    if(e.error==='aborted'){gotAbort=true;return;}
     if(e.error==='no-speech'){
+      // normal en móvil — reiniciar con pausa
       if(micActive&&!micRestarting){
         micRestarting=true;
-        setTimeout(()=>{micRestarting=false;launchSession();},400);
+        setTimeout(()=>{micRestarting=false;if(micActive)launchSession();},800);
       }
       return;
     }
+    const msgs={'not-allowed':'Permiso denegado','network':'Sin conexión — necesita internet','audio-capture':'Micrófono no encontrado'};
     const {status}=getMicEls();
-    const msgs={
-      'not-allowed':'Permiso denegado — activa micrófono en Ajustes',
-      'network':'Sin conexión — el reconocedor necesita internet',
-      'service-not-allowed':'Permiso denegado',
-      'audio-capture':'No se encontró micrófono',
-    };
     if(status)status.textContent=msgs[e.error]||'Error: '+e.error;
     stopMic(true);
   };
 
   micRecog.onend=()=>{
-    micLog('onend — micActive='+micActive);
-    if(micActive&&!micRestarting){
-      micRestarting=true;
-      setTimeout(()=>{
-        micRestarting=false;
-        if(micActive)launchSession();
-      },300);
-    }
+    micLog('onend micActive='+micActive+' gotResult='+gotResult+' gotAbort='+gotAbort);
+    if(!micActive||micRestarting||gotAbort)return;
+    micRestarting=true;
+    // Si hubo resultado → reiniciar rápido; si no → esperar más (Chrome inicializándose)
+    const delay=gotResult?350:1000;
+    setTimeout(()=>{micRestarting=false;if(micActive)launchSession();},delay);
   };
 
   try{
     micRecog.start();
-    micLog('start() llamado');
+    micLog('start() OK');
   }catch(err){
-    micLog('start() ERROR: '+err.name+' '+err.message);
+    micLog('start() ERR: '+err.name);
     if(err.name==='InvalidStateError'){
-      setTimeout(()=>{if(micActive)launchSession();},600);
+      setTimeout(()=>{if(micActive)launchSession();},700);
     }else{
       const {status}=getMicEls();
-      if(status)status.textContent='Error al iniciar: '+err.message;
+      if(status)status.textContent='Error: '+err.message;
       stopMic(true);
     }
   }
