@@ -1519,14 +1519,14 @@ function showTab(tab){
 }
 
 /* ===================================================
-   MICRÓFONO — Web Speech API
+   MICRÓFONO — Web Speech API (compatible móvil)
    =================================================== */
 let micRecog=null;
 let micActive=false;
-let micFinalText='';  // texto final acumulado del textarea antes de dictar
+let micFinalText='';
+let micRestarting=false;
 
 const SpeechRec=window.SpeechRecognition||window.webkitSpeechRecognition||null;
-
 function micSupported(){return!!SpeechRec;}
 
 function getMicEls(){
@@ -1542,49 +1542,60 @@ function getMicEls(){
 function toggleMic(){
   if(!micSupported()){
     const {status}=getMicEls();
-    if(status)status.textContent='Tu navegador no soporta reconocimiento de voz. Usa Chrome o Safari.';
+    if(status)status.textContent='Tu navegador no soporta voz. Usa Chrome o Safari.';
     return;
   }
   if(micActive)stopMic();
   else startMic();
 }
 
+function buildRecog(){
+  const r=new SpeechRec();
+  r.lang='es-PA';          // Español Panamá — más cercano a tu acento
+  r.continuous=false;      // CLAVE: false funciona en Chrome Android; continuous falla en móvil
+  r.interimResults=true;
+  r.maxAlternatives=3;     // Pedimos 3 alternativas para mayor chance de acierto
+  return r;
+}
+
 function startMic(){
   if(!micSupported()||micActive)return;
   const {btn,label,status,interim,ta}=getMicEls();
-  if(!btn)return; // no estamos en modo normal
+  if(!btn)return;
 
-  // Guardar lo que ya hay escrito en el textarea
   micFinalText=(ta?ta.value:'').trimEnd();
+  micActive=true;
+  micRestarting=false;
 
-  micRecog=new SpeechRec();
-  micRecog.lang='es-ES';           // español estándar — mejor para vocabulario bíblico
-  micRecog.continuous=true;        // no corta hasta que el usuario pare
-  micRecog.interimResults=true;    // muestra texto mientras habla
-  micRecog.maxAlternatives=1;
+  if(btn)btn.classList.add('listening');
+  if(label)label.textContent='Detener';
+  if(status)status.textContent='🎙 Escuchando… habla claro y despacio';
+  if(interim){interim.style.display='block';interim.textContent='';}
 
-  micRecog.onstart=()=>{
-    micActive=true;
-    if(btn){btn.classList.add('listening');}
-    if(label)label.textContent='Detener';
-    if(status)status.textContent='Escuchando… habla el versículo con calma y claridad';
-    if(interim){interim.style.display='block';interim.textContent='';}
-  };
+  launchSession();
+}
+
+function launchSession(){
+  if(!micActive)return;
+  const {status,interim,ta}=getMicEls();
+
+  micRecog=buildRecog();
 
   micRecog.onresult=(e)=>{
     let interimStr='';
     let newFinal='';
     for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=e.results[i][0].transcript;
+      // Tomar la primera alternativa con mejor confianza
+      const best=Array.from({length:e.results[i].length},(_,j)=>e.results[i][j])
+        .sort((a,b)=>b.confidence-a.confidence)[0];
+      const t=best.transcript;
       if(e.results[i].isFinal){
         newFinal+=(newFinal?' ':'')+t.trim();
       }else{
         interimStr+=t;
       }
     }
-    // Actualizar interim preview
     if(interim)interim.textContent=interimStr||'';
-    // Cuando hay texto final, acumularlo en el textarea
     if(newFinal){
       const sep=(micFinalText&&!micFinalText.endsWith(' '))?' ':'';
       micFinalText=micFinalText+sep+newFinal;
@@ -1594,46 +1605,72 @@ function startMic(){
   };
 
   micRecog.onerror=(e)=>{
-    let msg='';
-    switch(e.error){
-      case'not-allowed': msg='Permiso de micrófono denegado. Actívalo en la configuración del navegador.';break;
-      case'no-speech':   msg='No se detectó voz. Intenta hablar más cerca del micrófono.';break;
-      case'network':     msg='Error de red. Verifica tu conexión a internet.';break;
-      case'aborted':     msg='';break;
-      default:           msg='Error: '+e.error;
+    if(e.error==='aborted')return; // ignorar aborts manuales
+    if(e.error==='no-speech'){
+      // En móvil es normal — simplemente reiniciar silenciosamente
+      if(micActive&&!micRestarting){
+        micRestarting=true;
+        setTimeout(()=>{micRestarting=false;launchSession();},300);
+      }
+      return;
     }
-    if(msg&&status)status.textContent=msg;
+    const {status}=getMicEls();
+    const msgs={
+      'not-allowed':'Permiso denegado — activa el micrófono en Ajustes del navegador',
+      'network':'Error de red — verifica tu conexión',
+      'service-not-allowed':'Permiso denegado — activa el micrófono en Ajustes',
+    };
+    if(status)status.textContent=msgs[e.error]||'Error: '+e.error;
     stopMic(true);
   };
 
   micRecog.onend=()=>{
-    // Si sigue activo (no fue detenido manualmente) y no hubo error, re-iniciar
-    // para mantener dictado continuo en Safari que corta cada pocos segundos
-    if(micActive){
-      try{micRecog.start();}catch(err){stopMic(true);}
+    // Chrome Android dispara onend tras cada enunciado — reiniciamos automáticamente
+    if(micActive&&!micRestarting){
+      micRestarting=true;
+      setTimeout(()=>{
+        micRestarting=false;
+        if(micActive)launchSession();
+      },200);
     }
   };
 
-  try{micRecog.start();}
-  catch(err){
-    if(status)status.textContent='No se pudo iniciar el micrófono: '+err.message;
+  micRecog.onstart=()=>{
+    const {status}=getMicEls();
+    if(status&&micActive)status.textContent='🎙 Escuchando… habla el versículo';
+  };
+
+  try{
+    micRecog.start();
+  }catch(err){
+    // Si ya hay una sesión activa (raza), esperar y reintentar
+    if(err.name==='InvalidStateError'){
+      setTimeout(()=>{if(micActive)launchSession();},500);
+    }else{
+      const {status}=getMicEls();
+      if(status)status.textContent='No se pudo iniciar: '+err.message;
+      stopMic(true);
+    }
   }
 }
 
 function stopMic(fromError=false){
   micActive=false;
+  micRestarting=false;
   if(micRecog){
     try{micRecog.abort();}catch(e){}
     micRecog=null;
   }
   const {btn,label,status,interim,ta}=getMicEls();
   if(!btn)return;
-  if(btn)btn.classList.remove('listening');
+  btn.classList.remove('listening');
   if(label)label.textContent='Dictar';
   if(interim){interim.style.display='none';interim.textContent='';}
   if(!fromError&&status){
     const words=ta&&ta.value.trim()?ta.value.trim().split(/\s+/).length:0;
-    status.textContent=words>0?`✓ Dictado completo (${words} palabras) — revisa y presiona Comprobar`:'Dicta el versículo con tu voz y luego presiona Comprobar';
+    status.textContent=words>0
+      ?`✓ ${words} palabras dictadas — revisa y presiona Comprobar`
+      :'Presiona Dictar y habla el versículo — luego Comprobar';
   }
 }
 
