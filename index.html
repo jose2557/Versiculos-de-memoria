@@ -1115,6 +1115,10 @@ function renderCard(idx){
       <span class="mic-status" id="mic-status">Habla el versículo y el texto aparecerá aquí — luego presiona Comprobar</span>
     </div>
     <div class="mic-interim" id="mic-interim" style="display:none"></div>
+    <div id="mic-debug-wrap" style="display:none;margin-top:6px">
+      <div style="font-size:0.68rem;color:var(--gold3);margin-bottom:2px">🔧 Debug mic (temporal):</div>
+      <pre id="mic-debug" style="font-size:0.65rem;color:var(--text3);background:var(--bg4);border-radius:6px;padding:6px;max-height:120px;overflow-y:auto;margin:0;white-space:pre-wrap;word-break:break-all"></pre>
+    </div>
     <div id="v-diff"></div>`;
   }else{
     // Calcular alto aproximado del texto para el spacer
@@ -1519,12 +1523,13 @@ function showTab(tab){
 }
 
 /* ===================================================
-   MICRÓFONO — Web Speech API (compatible móvil)
+   MICRÓFONO — Web Speech API (compatible móvil + debug)
    =================================================== */
 let micRecog=null;
 let micActive=false;
 let micFinalText='';
 let micRestarting=false;
+let micSessionCount=0;
 
 const SpeechRec=window.SpeechRecognition||window.webkitSpeechRecognition||null;
 function micSupported(){return!!SpeechRec;}
@@ -1535,27 +1540,26 @@ function getMicEls(){
     label:document.getElementById('mic-btn-label'),
     status:document.getElementById('mic-status'),
     interim:document.getElementById('mic-interim'),
-    ta:document.getElementById('v-ans')
+    ta:document.getElementById('v-ans'),
+    dbg:document.getElementById('mic-debug')
   };
+}
+
+function micLog(msg){
+  const el=document.getElementById('mic-debug');
+  if(!el)return;
+  const t=new Date().toLocaleTimeString('es',{hour12:false});
+  el.textContent='['+t+'] '+msg+'\n'+el.textContent.slice(0,400);
 }
 
 function toggleMic(){
   if(!micSupported()){
     const {status}=getMicEls();
-    if(status)status.textContent='Tu navegador no soporta voz. Usa Chrome o Safari.';
+    if(status)status.textContent='No soportado — usa Chrome o Safari';
     return;
   }
   if(micActive)stopMic();
   else startMic();
-}
-
-function buildRecog(){
-  const r=new SpeechRec();
-  r.lang='es-PA';          // Español Panamá — más cercano a tu acento
-  r.continuous=false;      // CLAVE: false funciona en Chrome Android; continuous falla en móvil
-  r.interimResults=true;
-  r.maxAlternatives=3;     // Pedimos 3 alternativas para mayor chance de acierto
-  return r;
 }
 
 function startMic(){
@@ -1566,29 +1570,54 @@ function startMic(){
   micFinalText=(ta?ta.value:'').trimEnd();
   micActive=true;
   micRestarting=false;
+  micSessionCount=0;
 
-  if(btn)btn.classList.add('listening');
+  btn.classList.add('listening');
   if(label)label.textContent='Detener';
-  if(status)status.textContent='🎙 Escuchando… habla claro y despacio';
+  if(status)status.textContent='🎙 Iniciando…';
   if(interim){interim.style.display='block';interim.textContent='';}
 
+  // Mostrar panel de debug
+  const dbgWrap=document.getElementById('mic-debug-wrap');
+  if(dbgWrap)dbgWrap.style.display='block';
+
+  micLog('startMic() — SpeechRec='+SpeechRec.name);
   launchSession();
 }
 
 function launchSession(){
   if(!micActive)return;
-  const {status,interim,ta}=getMicEls();
+  micSessionCount++;
+  micLog('launchSession #'+micSessionCount);
 
-  micRecog=buildRecog();
+  // Crear instancia nueva cada sesión — reutilizar la misma da problemas en Android
+  micRecog=new SpeechRec();
+  micRecog.lang='es-MX';       // es-MX más universal que es-PA en Android
+  micRecog.continuous=false;
+  micRecog.interimResults=true;
+  micRecog.maxAlternatives=1;
+
+  micRecog.onstart=()=>{
+    micLog('onstart OK');
+    const {status}=getMicEls();
+    if(status)status.textContent='🎙 Escuchando… habla ahora';
+  };
+
+  micRecog.onaudiostart=()=>micLog('onaudiostart — audio capturado');
+  micRecog.onsoundstart=()=>micLog('onsoundstart — sonido detectado');
+  micRecog.onspeechstart=()=>micLog('onspeechstart — voz detectada ✓');
+  micRecog.onspeechend=()=>micLog('onspeechend — voz terminó');
+  micRecog.onsoundend=()=>micLog('onsoundend');
+  micRecog.onaudioend=()=>micLog('onaudioend');
 
   micRecog.onresult=(e)=>{
+    micLog('onresult — results:'+e.results.length);
+    const {interim,ta}=getMicEls();
     let interimStr='';
     let newFinal='';
     for(let i=e.resultIndex;i<e.results.length;i++){
-      // Tomar la primera alternativa con mejor confianza
-      const best=Array.from({length:e.results[i].length},(_,j)=>e.results[i][j])
-        .sort((a,b)=>b.confidence-a.confidence)[0];
-      const t=best.transcript;
+      const t=e.results[i][0].transcript;
+      micLog((e.results[i].isFinal?'FINAL':'interim')+': "'+t.slice(0,40)+'"');
       if(e.results[i].isFinal){
         newFinal+=(newFinal?' ':'')+t.trim();
       }else{
@@ -1604,51 +1633,50 @@ function launchSession(){
     }
   };
 
+  micRecog.onnomatch=()=>micLog('onnomatch — no reconoció nada');
+
   micRecog.onerror=(e)=>{
-    if(e.error==='aborted')return; // ignorar aborts manuales
+    micLog('onerror: '+e.error);
+    if(e.error==='aborted')return;
     if(e.error==='no-speech'){
-      // En móvil es normal — simplemente reiniciar silenciosamente
       if(micActive&&!micRestarting){
         micRestarting=true;
-        setTimeout(()=>{micRestarting=false;launchSession();},300);
+        setTimeout(()=>{micRestarting=false;launchSession();},400);
       }
       return;
     }
     const {status}=getMicEls();
     const msgs={
-      'not-allowed':'Permiso denegado — activa el micrófono en Ajustes del navegador',
-      'network':'Error de red — verifica tu conexión',
-      'service-not-allowed':'Permiso denegado — activa el micrófono en Ajustes',
+      'not-allowed':'Permiso denegado — activa micrófono en Ajustes',
+      'network':'Sin conexión — el reconocedor necesita internet',
+      'service-not-allowed':'Permiso denegado',
+      'audio-capture':'No se encontró micrófono',
     };
     if(status)status.textContent=msgs[e.error]||'Error: '+e.error;
     stopMic(true);
   };
 
   micRecog.onend=()=>{
-    // Chrome Android dispara onend tras cada enunciado — reiniciamos automáticamente
+    micLog('onend — micActive='+micActive);
     if(micActive&&!micRestarting){
       micRestarting=true;
       setTimeout(()=>{
         micRestarting=false;
         if(micActive)launchSession();
-      },200);
+      },300);
     }
-  };
-
-  micRecog.onstart=()=>{
-    const {status}=getMicEls();
-    if(status&&micActive)status.textContent='🎙 Escuchando… habla el versículo';
   };
 
   try{
     micRecog.start();
+    micLog('start() llamado');
   }catch(err){
-    // Si ya hay una sesión activa (raza), esperar y reintentar
+    micLog('start() ERROR: '+err.name+' '+err.message);
     if(err.name==='InvalidStateError'){
-      setTimeout(()=>{if(micActive)launchSession();},500);
+      setTimeout(()=>{if(micActive)launchSession();},600);
     }else{
       const {status}=getMicEls();
-      if(status)status.textContent='No se pudo iniciar: '+err.message;
+      if(status)status.textContent='Error al iniciar: '+err.message;
       stopMic(true);
     }
   }
@@ -1669,9 +1697,10 @@ function stopMic(fromError=false){
   if(!fromError&&status){
     const words=ta&&ta.value.trim()?ta.value.trim().split(/\s+/).length:0;
     status.textContent=words>0
-      ?`✓ ${words} palabras dictadas — revisa y presiona Comprobar`
-      :'Presiona Dictar y habla el versículo — luego Comprobar';
+      ?`✓ ${words} palabras — revisa y presiona Comprobar`
+      :'Presiona Dictar, habla el versículo, luego Comprobar';
   }
+  micLog('stopMic() — sesiones usadas: '+micSessionCount);
 }
 
 /* ===================================================
