@@ -1649,27 +1649,6 @@ function stopMic(fromError=false){
   }
 }
 
-function stopMic(fromError=false){
-  micActive=false;
-  micRestarting=false;
-  if(micRecog){
-    try{micRecog.abort();}catch(e){}
-    micRecog=null;
-  }
-  const {btn,label,status,interim,ta}=getMicEls();
-  if(!btn)return;
-  btn.classList.remove('listening');
-  if(label)label.textContent='Dictar';
-  if(interim){interim.style.display='none';interim.textContent='';}
-  if(!fromError&&status){
-    const words=ta&&ta.value.trim()?ta.value.trim().split(/\s+/).length:0;
-    status.textContent=words>0
-      ?`✓ ${words} palabras — revisa y presiona Comprobar`
-      :'Presiona Dictar, habla el versículo, luego Comprobar';
-  }
-  micLog('stopMic() — sesiones usadas: '+micSessionCount);
-}
-
 /* ===================================================
    INIT
    =================================================== */
